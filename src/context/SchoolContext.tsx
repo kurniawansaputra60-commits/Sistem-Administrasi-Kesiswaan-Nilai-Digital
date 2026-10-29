@@ -139,23 +139,18 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ? parsed.logoSekolahUrl
         : '/assets/aistudio/llogo_06ce9f11.png';
 
-      // Migrasi: jika waliKelasList belum memiliki rombel atau petugas admin masih nama lama
-      const list = parsed.waliKelasList;
-      if (!list || list.length < 12 || list.some((w: any) => !w.rombel || w.kelas === 'I' || w.kelas === 'III') || parsed.namaPetugasAdmin !== 'KURNIAWAN SAPUTRA') {
-        return {
-          ...parsed,
-          logoSekolahUrl: logoUrl,
-          namaPetugasAdmin: 'KURNIAWAN SAPUTRA',
-          nipPetugasAdmin: '19890906 202521 1 004',
-          kepalaSekolahTtdUrl: parsed.kepalaSekolahTtdUrl || initialSchoolProfile.kepalaSekolahTtdUrl,
-          waliKelasList: initialSchoolProfile.waliKelasList,
-        };
-      }
+      // Pertahankan secara utuh data waliKelasList yang telah diatur oleh pengguna
+      const validWaliList = Array.isArray(parsed.waliKelasList) && parsed.waliKelasList.length > 0
+        ? parsed.waliKelasList
+        : initialSchoolProfile.waliKelasList;
+
       return {
+        ...initialSchoolProfile,
         ...parsed,
         logoSekolahUrl: logoUrl,
-        namaPetugasAdmin: 'KURNIAWAN SAPUTRA',
-        nipPetugasAdmin: '19890906 202521 1 004',
+        namaPetugasAdmin: parsed.namaPetugasAdmin || 'KURNIAWAN SAPUTRA',
+        nipPetugasAdmin: parsed.nipPetugasAdmin || '19890906 202521 1 004',
+        waliKelasList: validWaliList,
       };
     } catch {
       return initialSchoolProfile;
@@ -348,7 +343,15 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   ]);
 
   const updateSchoolProfile = (updates: Partial<SchoolProfile>) => {
-    setSchoolProfile(prev => ({ ...prev, ...updates }));
+    setSchoolProfile(prev => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(next));
+      } catch (err) {
+        console.error('Error saving updated schoolProfile to localStorage:', err);
+      }
+      return next;
+    });
   };
 
   const addStudent = (studentData: Omit<Student, 'id'>): string => {

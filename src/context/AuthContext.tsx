@@ -143,13 +143,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const activeSchoolProfile = getActiveSchoolProfile();
 
     if (!userNipClean) {
-      return { success: false, message: 'Harap masukkan Username NIP!' };
+      return { success: false, message: 'Harap masukkan Username NIP atau NIK!' };
     }
     if (!passNipClean) {
-      return { success: false, message: 'Harap masukkan Password NIP!' };
+      return { success: false, message: 'Harap masukkan Password!' };
     }
     if (userNipClean !== passNipClean) {
-      return { success: false, message: 'Username NIP dan Password NIP tidak cocok! (Pastikan menginputkan NIP yang sama pada Username dan Password)' };
+      return { success: false, message: 'Username dan Password tidak cocok! (Pastikan menginputkan NIP / NIK / Akun yang sama pada Username dan Password)' };
+    }
+
+    // 0. Cek Akun Administrator Sistem (Username 'admin' / NIP Petugas Admin)
+    const adminNipClean = cleanNip(activeSchoolProfile.nipPetugasAdmin || '19890906 202521 1 004');
+    if (
+      userNipClean === 'admin' ||
+      userNipClean === 'administrator' ||
+      userNipClean === adminNipClean ||
+      userNipClean === '198909062025211004'
+    ) {
+      setIsDemoAccount(true);
+      const profile: UserProfile = {
+        uid: `admin-${Date.now()}`,
+        email: `admin@sdn1cempaka.sch.id`,
+        displayName: activeSchoolProfile.namaPetugasAdmin || 'KURNIAWAN SAPUTRA',
+        role: 'admin',
+        nip: activeSchoolProfile.nipPetugasAdmin || '19890906 202521 1 004',
+      };
+      try {
+        localStorage.setItem(AUTH_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+      } catch {}
+      setUserProfile(profile);
+      setLoading(false);
+      return { success: true };
     }
 
     // 1. Cek NIP / NIK Kepala Sekolah
@@ -163,6 +187,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: 'kepala_sekolah',
         nip: activeSchoolProfile.nipKepalaSekolah,
       };
+      try {
+        localStorage.setItem(AUTH_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+      } catch {}
       setUserProfile(profile);
       setLoading(false);
       return { success: true };
@@ -187,6 +214,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         kelasTugas: matchedTeacher.kelas,
         rombelTugas: matchedTeacher.rombel || 'A',
       };
+      try {
+        localStorage.setItem(AUTH_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+      } catch {}
       setUserProfile(profile);
       setLoading(false);
       return { success: true };
@@ -194,7 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return {
       success: false,
-      message: `NIP / NIK '${usernameNip}' tidak terdaftar sebagai Wali Kelas atau Kepala Sekolah di SD NEGERI 1 CEMPAKA. Silakan periksa kembali NIP / NIK Anda.`,
+      message: `NIP / NIK / Akun '${usernameNip}' tidak terdaftar di SD NEGERI 1 CEMPAKA. Silakan periksa kembali NIP / NIK Anda, atau hubungi Administrator.`,
     };
   };
 
@@ -210,9 +240,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let nip = customNip;
     let k = kelasTugas || '1';
     let r = rombelTugas || 'A';
+    const activeSchoolProfile = getActiveSchoolProfile();
 
     if (!name) {
       switch (role) {
+        case 'admin':
+          name = activeSchoolProfile.namaPetugasAdmin || 'KURNIAWAN SAPUTRA';
+          nip = activeSchoolProfile.nipPetugasAdmin || '19890906 202521 1 004';
+          break;
         case 'kepala_sekolah':
           name = initialSchoolProfile.namaKepalaSekolah;
           nip = initialSchoolProfile.nipKepalaSekolah;
@@ -225,21 +260,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           r = wk1a ? (wk1a.rombel || 'A') : 'A';
           break;
         default:
-          name = initialSchoolProfile.namaKepalaSekolah;
-          nip = initialSchoolProfile.nipKepalaSekolah;
+          name = activeSchoolProfile.namaPetugasAdmin || 'KURNIAWAN SAPUTRA';
+          nip = activeSchoolProfile.nipPetugasAdmin || '19890906 202521 1 004';
       }
     }
 
     const demoProfile: UserProfile = {
       uid: `demo-${role}-${Date.now()}`,
       email: `${role}@sdn1cempaka.sch.id`,
-      displayName: name,
+      displayName: name || 'Pengguna SD NEGERI 1 CEMPAKA',
       role,
       nip,
       kelasTugas: role === 'guru_kelas' ? k : undefined,
       rombelTugas: role === 'guru_kelas' ? r : undefined,
     };
 
+    try {
+      localStorage.setItem(AUTH_PROFILE_STORAGE_KEY, JSON.stringify(demoProfile));
+    } catch {}
     setUserProfile(demoProfile);
     setLoading(false);
   };

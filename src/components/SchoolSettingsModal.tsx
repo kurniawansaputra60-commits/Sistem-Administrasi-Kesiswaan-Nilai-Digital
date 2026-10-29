@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Save, Download, Upload, RotateCcw, Check, AlertCircle, Image as ImageIcon, Users, Building, ShieldCheck, PenTool, Sparkles, Trash2, Plus, FileText } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolProfile, WaliKelasItem } from '../types';
@@ -76,6 +76,17 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({ isOpen
 
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setProfileForm({
+        ...schoolProfile,
+        waliKelasList: schoolProfile.waliKelasList && schoolProfile.waliKelasList.length > 0 
+          ? schoolProfile.waliKelasList 
+          : profileForm.waliKelasList,
+      });
+    }
+  }, [isOpen, schoolProfile]);
 
   if (!isOpen) return null;
 
