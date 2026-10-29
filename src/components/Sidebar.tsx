@@ -98,8 +98,6 @@ export interface NavSection {
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
   const { userProfile } = useAuth();
-  const [showAllMenus, setShowAllMenus] = useState(false);
-
   const role = userProfile?.role || 'admin';
 
   // Master katalog semua modul menu
@@ -204,7 +202,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
 
   // Filter sections sesuai peran pengguna
   const getVisibleSections = (): NavSection[] => {
-    if (showAllMenus || role === 'admin') {
+    if (role === 'admin') {
       return Object.values(allSections);
     }
 
@@ -219,8 +217,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
             { key: 'student-grades', label: 'Input & Leger Nilai Rapor', formatTag: 'LEGER', icon: Award },
           ],
         },
-        // Sesuai permintaan: Buku Utama Data Siswa & Buku Induk S-4 muncul di semua Wali Kelas!
-        allSections.bukuUtama,
+        // Sesuai permintaan: Buku Utama Data Siswa untuk Wali Kelas HANYA Buku Induk S-4 (S-5, PS-5a, PS-5b disembunyikan)
+        {
+          id: 'guru_bukuUtama',
+          title: '2. Buku Utama Data Siswa',
+          shortTitle: '2. Buku Utama',
+          items: [
+            { key: 's4-master-book', label: 'Buku Induk Siswa', formatTag: 'S-4', icon: BookOpen },
+          ],
+        },
         // Sesuai permintaan: Menu Statistik & Klasifikasi Siswa muncul di semua Wali Kelas!
         allSections.statistik,
         allSections.presensi,
@@ -515,29 +520,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
       </nav>
 
       {/* Footer Profile & Settings */}
-      <div className="p-3 border-t border-slate-800 bg-slate-950/40 text-[11px] space-y-2">
-        {/* Toggle Lihat Semua Format hanya untuk Kepala Sekolah / Guru Kelas jika ingin melihat arsip */}
-        {(role === 'kepala_sekolah' || role === 'guru_kelas') && (
-          <button
-            onClick={() => setShowAllMenus(!showAllMenus)}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer transition-colors shadow-2xs"
-          >
-            {showAllMenus ? (
-              <>
-                <EyeOff className="w-3 h-3 text-slate-400" />
-                <span>Tampilkan Menu Pokok Peran</span>
-              </>
-            ) : (
-              <>
-                <Eye className="w-3 h-3 text-emerald-400" />
-                <span>Buka Seluruh Dokumen (Format S-1 s/d PS-24)</span>
-              </>
-            )}
-          </button>
-        )}
-
-        {/* Profil Sekolah & Kop Surat HANYA untuk Administrator (Sesuai instruksi: sembunyikan dari Kepala Sekolah & Wali Kelas) */}
-        {role === 'admin' && (
+      {role === 'admin' && (
+        <div className="p-3 border-t border-slate-800 bg-slate-950/40 text-[11px] space-y-2">
+          {/* Profil Sekolah & Kop Surat HANYA untuk Administrator (Sesuai instruksi: sembunyikan dari Kepala Sekolah & Wali Kelas) */}
           <button
             onClick={() => onSelectTab('school-settings')}
             className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
@@ -549,8 +534,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
             <Building2 className="w-3.5 h-3.5" />
             <span>Profil Sekolah &amp; Kop Surat</span>
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </aside>
   );
 };

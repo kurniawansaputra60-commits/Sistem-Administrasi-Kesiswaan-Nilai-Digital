@@ -150,6 +150,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         logoSekolahUrl: logoUrl,
         namaPetugasAdmin: parsed.namaPetugasAdmin || 'KURNIAWAN SAPUTRA',
         nipPetugasAdmin: parsed.nipPetugasAdmin || '19890906 202521 1 004',
+        petugasAdminTtdUrl: parsed.petugasAdminTtdUrl || initialSchoolProfile.petugasAdminTtdUrl,
         waliKelasList: validWaliList,
       };
     } catch {

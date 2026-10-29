@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Download, Upload, RotateCcw, Check, AlertCircle, Image as ImageIcon, Users, Building, ShieldCheck, PenTool, Sparkles, Trash2, Plus, FileText } from 'lucide-react';
+import { X, Save, Download, Upload, RotateCcw, Check, AlertCircle, Image as ImageIcon, Users, User, Building, ShieldCheck, PenTool, Sparkles, Trash2, Plus, FileText } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolProfile, WaliKelasItem } from '../types';
 import { SignaturePadModal } from './SignaturePadModal';
@@ -162,6 +162,8 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({ isOpen
       const dataUrl = ev.target?.result as string;
       if (targetId === 'kepala') {
         setProfileForm(prev => ({ ...prev, kepalaSekolahTtdUrl: dataUrl }));
+      } else if (targetId === 'admin_officer') {
+        setProfileForm(prev => ({ ...prev, petugasAdminTtdUrl: dataUrl }));
       } else {
         setProfileForm(prev => ({
           ...prev,
@@ -177,9 +179,12 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({ isOpen
   };
 
   const handleAutoGenerateSignature = (targetId: string, name: string) => {
-    const dataUrl = generateDigitalSignatureSvg(name || 'Guru');
+    const isOfficer = targetId === 'admin_officer' || name.toUpperCase().includes('KURNIAWAN');
+    const dataUrl = generateDigitalSignatureSvg(name || 'Guru', isOfficer ? 'KS' : undefined);
     if (targetId === 'kepala') {
       setProfileForm(prev => ({ ...prev, kepalaSekolahTtdUrl: dataUrl }));
+    } else if (targetId === 'admin_officer') {
+      setProfileForm(prev => ({ ...prev, petugasAdminTtdUrl: dataUrl }));
     } else {
       setProfileForm(prev => ({
         ...prev,
@@ -193,6 +198,8 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({ isOpen
   const handleRemoveSignature = (targetId: string) => {
     if (targetId === 'kepala') {
       setProfileForm(prev => ({ ...prev, kepalaSekolahTtdUrl: undefined }));
+    } else if (targetId === 'admin_officer') {
+      setProfileForm(prev => ({ ...prev, petugasAdminTtdUrl: undefined }));
     } else {
       setProfileForm(prev => ({
         ...prev,
@@ -205,6 +212,8 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({ isOpen
     if (!sigPadConfig) return;
     if (sigPadConfig.targetId === 'kepala') {
       setProfileForm(prev => ({ ...prev, kepalaSekolahTtdUrl: dataUrl }));
+    } else if (sigPadConfig.targetId === 'admin_officer') {
+      setProfileForm(prev => ({ ...prev, petugasAdminTtdUrl: dataUrl }));
     } else {
       setProfileForm(prev => ({
         ...prev,
@@ -698,6 +707,116 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({ isOpen
                         onClick={() => handleRemoveSignature('kepala')}
                         className="px-2 py-1.5 text-rose-700 hover:bg-rose-50 border border-rose-200 rounded font-medium cursor-pointer text-xs"
                         title="Hapus tanda tangan digital (menjadi tanda tangan basah)"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Petugas Administrasi / Pengelola Card & TTD (Kurniawan Saputra) */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-emerald-700" />
+                    <span>Petugas Administrasi &amp; Pengelola Dokumen Induk (Kurniawan Saputra)</span>
+                  </span>
+                  {profileForm.petugasAdminTtdUrl ? (
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded flex items-center gap-1">
+                      <Check className="w-3 h-3" /> TTD Petugas Aktif
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded">
+                      Belum ada TTD
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700">Nama Petugas Administrasi / Pengelola</label>
+                    <input
+                      type="text"
+                      value={profileForm.namaPetugasAdmin || 'KURNIAWAN SAPUTRA'}
+                      onChange={e => setProfileForm({ ...profileForm, namaPetugasAdmin: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded font-bold text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700">NIP Petugas Administrasi</label>
+                    <input
+                      type="text"
+                      value={profileForm.nipPetugasAdmin || '19890906 202521 1 004'}
+                      onChange={e => setProfileForm({ ...profileForm, nipPetugasAdmin: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded font-mono font-semibold"
+                    />
+                  </div>
+                </div>
+
+                {/* Tanda Tangan Petugas Administrasi (Kurniawan Saputra) */}
+                <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-28 h-14 bg-white border border-slate-300 rounded flex items-center justify-center overflow-hidden shadow-xs relative">
+                      {profileForm.petugasAdminTtdUrl ? (
+                        <img
+                          src={profileForm.petugasAdminTtdUrl}
+                          alt="TTD Kurniawan Saputra"
+                          className="max-h-12 max-w-[100px] object-contain"
+                        />
+                      ) : (
+                        <span className="text-[10px] text-slate-400 italic">Belum ada TTD</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-600">
+                      <p className="font-semibold text-slate-800">Tanda Tangan Petugas Administrasi (KURNIAWAN SAPUTRA)</p>
+                      <p className="text-[10px] text-slate-500">Tercetak pada dokumen resmi (Format S-1 s/d S-3, PS-5a, PS-5b, dsb)</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSigPadConfig({
+                        isOpen: true,
+                        targetId: 'admin_officer',
+                        title: 'Petugas Administrasi',
+                        name: profileForm.namaPetugasAdmin || 'KURNIAWAN SAPUTRA',
+                        currentSignature: profileForm.petugasAdminTtdUrl,
+                      })}
+                      className="px-2.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 rounded font-medium flex items-center gap-1 cursor-pointer text-xs"
+                    >
+                      <PenTool className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Gambar TTD di Layar</span>
+                    </button>
+
+                    <label className="px-2.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 rounded font-medium flex items-center gap-1 cursor-pointer text-xs">
+                      <Upload className="w-3.5 h-3.5 text-blue-700" />
+                      <span>Upload File TTD</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => handleUploadTtdFile('admin_officer', e)}
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAutoGenerateSignature('admin_officer', profileForm.namaPetugasAdmin || 'KURNIAWAN SAPUTRA')}
+                      className="px-2.5 py-1.5 bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-800 rounded font-bold flex items-center gap-1 cursor-pointer text-xs shadow-2xs"
+                      title="Generate paraf kaligrafi otomatis untuk Kurniawan Saputra"
+                    >
+                      <Sparkles className="w-3 h-3 text-emerald-600" />
+                      <span>Paraf Otomatis untuk Kurniawan Saputra</span>
+                    </button>
+
+                    {profileForm.petugasAdminTtdUrl && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSignature('admin_officer')}
+                        className="px-2 py-1.5 text-rose-700 hover:bg-rose-50 border border-rose-200 rounded font-medium cursor-pointer text-xs"
+                        title="Hapus tanda tangan digital petugas"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>

@@ -220,7 +220,7 @@ export const OfficialSignature: React.FC<OfficialSignatureProps> = ({
     staffTitle = leftTitle || waliKelasLabel || 'Petugas Administrasi / Pengelola Kesiswaan';
     staffName = leftName || waliKelasNama || schoolProfile.namaPetugasAdmin || 'KURNIAWAN SAPUTRA';
     staffNip = leftNip || waliKelasNip || schoolProfile.nipPetugasAdmin || '19890906 202521 1 004';
-    staffTtd = waliKelasTtdUrl || generateDigitalSignatureSvg(staffName, 'KS');
+    staffTtd = waliKelasTtdUrl || schoolProfile.petugasAdminTtdUrl || generateDigitalSignatureSvg(staffName, 'KS');
   } else {
     staffTitle = leftTitle || waliKelasLabel || defaultStaffTitle;
     staffName = leftName || waliKelasNama || detectedWaliNama;

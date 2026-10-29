@@ -358,6 +358,7 @@ export interface SchoolProfile {
   waliKelasList?: WaliKelasItem[]; // Data Wali Kelas per Kelas & Rombel (I A, I B, s/d VI B)
   namaPetugasAdmin: string;
   nipPetugasAdmin: string;
+  petugasAdminTtdUrl?: string; // TTD digital petugas administrasi (Kurniawan Saputra)
   tahunAjaranAktif: string; // e.g. "2025/2026"
   semesterAktif: '1' | '2';
   tanggalDokumen: string;

@@ -61,6 +61,7 @@ export const initialSchoolProfile: SchoolProfile = {
   ],
   namaPetugasAdmin: 'KURNIAWAN SAPUTRA',
   nipPetugasAdmin: '19890906 202521 1 004',
+  petugasAdminTtdUrl: generateDigitalSignatureSvg('KURNIAWAN SAPUTRA', 'KS'),
   tahunAjaranAktif: '2025/2026',
   semesterAktif: '2',
   tanggalDokumen: '2026-07-20',

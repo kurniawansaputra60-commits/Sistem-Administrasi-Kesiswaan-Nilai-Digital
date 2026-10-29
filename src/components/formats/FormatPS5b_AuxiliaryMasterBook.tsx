@@ -1,21 +1,41 @@
 import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
-import { Search, Printer, BookOpen } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { Search, Printer, Users } from 'lucide-react';
+import { isKelasMatch, toRomanClass } from '../../utils/classUtils';
 
 export const FormatPS5b_AuxiliaryMasterBook: React.FC = () => {
   const { students, schoolProfile } = useSchool();
-  const [selectedClass, setSelectedClass] = useState<string>('I');
+  const { userProfile } = useAuth();
+
+  const isGuruKelas = userProfile?.role === 'guru_kelas';
+  const initialClass = isGuruKelas ? toRomanClass(userProfile?.kelasTugas || '1') : 'I';
+  const initialRombel = isGuruKelas ? (userProfile?.rombelTugas || 'A') : 'A';
+
+  const [selectedClass, setSelectedClass] = useState<string>(initialClass);
+  const [selectedRombel, setSelectedRombel] = useState<string>(initialRombel);
   const [searchQuery, setSearchQuery] = useState('');
 
   const classList = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+  const rombelList = ['A', 'B'];
+
+  // Wali kelas otomatis menyesuaikan kelas & rombel yang dipilih
+  const matchedWali = (schoolProfile.waliKelasList || []).find(
+    w => isKelasMatch(w.kelas, selectedClass) && (w.rombel || 'A') === selectedRombel
+  ) || (schoolProfile.waliKelasList || []).find(w => isKelasMatch(w.kelas, selectedClass));
+
+  const waliKelasName = matchedWali?.nama || (selectedClass === 'I' ? 'Siti Khadijah, S.Pd.' : schoolProfile.namaWaliKelas);
 
   const filtered = students.filter(s => {
-    const matchClass = s.kelasSekarang === selectedClass && s.statusSiswa === 'aktif';
+    const matchClass = isKelasMatch(s.kelasSekarang, selectedClass);
+    const matchRombel = !selectedRombel || (s.rombel || 'A') === selectedRombel;
+    const matchActive = s.statusSiswa === 'aktif';
     const matchQuery =
       s.namaLengkap.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.nis.includes(searchQuery);
-    return matchClass && matchQuery;
+      s.nis.includes(searchQuery) ||
+      s.nisn.includes(searchQuery);
+    return matchClass && matchRombel && matchActive && matchQuery;
   });
 
   return (
@@ -23,17 +43,19 @@ export const FormatPS5b_AuxiliaryMasterBook: React.FC = () => {
       {/* Control Bar */}
       <div className="no-print bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
+          {/* Pemilihan Kelas */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700">Pilih Kelas / Rombel:</span>
+            <span className="text-xs font-semibold text-slate-700">Tingkat Kelas:</span>
             <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-50">
               {classList.map(cls => (
                 <button
                   key={cls}
                   onClick={() => setSelectedClass(cls)}
+                  disabled={isGuruKelas}
                   className={`px-3 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
                     selectedClass === cls
                       ? 'bg-emerald-700 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      : 'text-slate-600 hover:text-slate-900 disabled:opacity-50'
                   }`}
                 >
                   Kelas {cls}
@@ -42,23 +64,45 @@ export const FormatPS5b_AuxiliaryMasterBook: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative w-60">
+          {/* Pemilihan Rombel */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-700">Rombel:</span>
+            <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-50">
+              {rombelList.map(rb => (
+                <button
+                  key={rb}
+                  onClick={() => setSelectedRombel(rb)}
+                  disabled={isGuruKelas}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+                    selectedRombel === rb
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 disabled:opacity-50'
+                  }`}
+                >
+                  Rombel {rb}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative w-56">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari nama atau NIS siswa..."
+              placeholder="Cari nama atau NIS..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-md"
+              className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
           </div>
         </div>
 
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md hover:bg-slate-900 cursor-pointer shadow-xs"
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 text-white text-xs font-medium rounded-lg hover:bg-slate-900 cursor-pointer shadow-xs transition-colors"
         >
-          <Printer className="w-3.5 h-3.5" /> Cetak Buku Pembantu Induk (PS-5b)
+          <Printer className="w-3.5 h-3.5" />
+          <span>Cetak Buku Pembantu Induk (PS-5b)</span>
         </button>
       </div>
 
@@ -67,24 +111,25 @@ export const FormatPS5b_AuxiliaryMasterBook: React.FC = () => {
         <OfficialKop
           formatCode="Format PS-5b"
           title="BUKU PEMBANTU INDUK SISWA"
-          subtitle={`CATATAN INDUK PESERTA DIDIK TINGKAT KELAS / ROMBEL ${selectedClass}`}
+          subtitle={`CATATAN INDUK PESERTA DIDIK TINGKAT KELAS / ROMBEL ${selectedClass} ${selectedRombel}`}
         />
 
-        <div className="flex justify-between items-center text-xs font-medium text-slate-700 mb-4 px-1">
+        {/* Metadata Header Sesuai Instruksi Resmi */}
+        <div className="flex flex-wrap justify-between items-center text-xs font-medium text-slate-800 mb-4 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
           <div>
-            Tingkat Kelas: <span className="font-bold font-mono">Kelas {selectedClass}</span>
+            Tingkat Kelas: <span className="font-bold font-mono text-emerald-900">Kelas {selectedClass}</span> {selectedRombel && <span className="font-semibold text-slate-600">({selectedRombel})</span>}
           </div>
           <div>
-            Tahun Pelajaran: <span className="font-bold">{schoolProfile.tahunAjaranAktif}</span>
+            Tahun Pelajaran: <span className="font-bold font-mono text-emerald-900">{schoolProfile.tahunAjaranAktif || '2025/2026'}</span>
           </div>
           <div>
-            Wali Kelas: <span className="font-bold">{schoolProfile.namaWaliKelas}</span>
+            Wali Kelas: <span className="font-bold text-slate-950 underline">{waliKelasName}</span>
           </div>
         </div>
 
         <div className="overflow-x-auto my-4">
           <table className="w-full text-xs border-collapse border border-slate-800">
-            <thead className="bg-slate-100 text-slate-900">
+            <thead className="bg-slate-100 text-slate-900 font-bold">
               <tr>
                 <th className="border border-slate-800 p-2 text-center w-8">No</th>
                 <th className="border border-slate-800 p-2 text-center w-20">NIS</th>
@@ -104,7 +149,7 @@ export const FormatPS5b_AuxiliaryMasterBook: React.FC = () => {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="border border-slate-800 p-6 text-center text-slate-500 italic">
-                    Belum ada data siswa aktif pada Kelas {selectedClass}.
+                    Belum ada data siswa aktif pada Kelas {selectedClass} Rombel {selectedRombel}.
                   </td>
                 </tr>
               ) : (
@@ -141,6 +186,10 @@ export const FormatPS5b_AuxiliaryMasterBook: React.FC = () => {
           </table>
         </div>
 
+        {/* Tanda Tangan Resmi:
+            Kepala Sekolah tercetak di sebelah kiri lembar dokumen resmi ("Mengetahui")
+            Petugas Administrasi Kurniawan Saputra tercetak di sebelah kanan dokumen resmi
+        */}
         <OfficialSignature
           rightTitle="Kepala Sekolah"
           rightName={schoolProfile.namaKepalaSekolah}
