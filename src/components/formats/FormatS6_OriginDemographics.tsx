@@ -6,7 +6,6 @@ import { Printer } from 'lucide-react';
 
 export const FormatS6_OriginDemographics: React.FC = () => {
   const { students, schoolProfile } = useSchool();
-  const [selectedRombelSign, setSelectedRombelSign] = useState<string>('ALL');
 
   const activeStudents = students.filter(s => s.statusSiswa === 'aktif');
 
@@ -62,8 +61,6 @@ export const FormatS6_OriginDemographics: React.FC = () => {
     };
   });
 
-  const selectedRombelObj = ALL_ROMBELS.find(r => r.code === selectedRombelSign);
-
   return (
     <div className="space-y-6">
       {/* Action Header */}
@@ -77,20 +74,10 @@ export const FormatS6_OriginDemographics: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700">Tanda Tangan Wali:</span>
-            <select
-              value={selectedRombelSign}
-              onChange={e => setSelectedRombelSign(e.target.value)}
-              className="text-xs px-3 py-1.5 border border-slate-300 rounded-md bg-white font-medium"
-            >
-              <option value="ALL">Petugas Administrasi Statistik</option>
-              {ALL_ROMBELS.map(r => (
-                <option key={r.code} value={r.code}>
-                  Wali {r.label}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700">
+            <span className="text-slate-500">Penandatangan:</span>
+            <span className="text-emerald-800 font-bold">KURNIAWAN SAPUTRA</span>
+            <span className="text-[10px] text-slate-500 font-mono">(Pengelola Statistik)</span>
           </div>
           <button
             onClick={() => window.print()}
@@ -108,8 +95,6 @@ export const FormatS6_OriginDemographics: React.FC = () => {
           formatCode="S-6"
           formatTitle="JUMLAH SISWA MENURUT KELAS, ASAL, DAN JENIS KELAMIN"
           subTitle={`KEADAAN TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
-          kelas={selectedRombelObj ? selectedRombelObj.kelas : undefined}
-          rombel={selectedRombelObj ? selectedRombelObj.rombel : undefined}
         />
 
         <div className="overflow-x-auto">
@@ -200,9 +185,10 @@ export const FormatS6_OriginDemographics: React.FC = () => {
         </div>
 
         <OfficialSignature
-          kelas={selectedRombelObj?.kelas}
-          rombel={selectedRombelObj?.rombel}
-          waliKelasLabel={selectedRombelObj ? `Wali ${selectedRombelObj.label}` : 'Petugas Administrasi Statistik'}
+          useAdminOfficer={true}
+          leftTitle="Petugas Administrasi / Pengelola Statistik Kesiswaan"
+          leftName="KURNIAWAN SAPUTRA"
+          leftNip="19890906 202521 1 004"
         />
       </div>
     </div>

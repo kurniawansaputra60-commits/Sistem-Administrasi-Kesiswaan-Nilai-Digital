@@ -7,7 +7,6 @@ import { Printer } from 'lucide-react';
 
 export const FormatReligionDemographics: React.FC = () => {
   const { students, schoolProfile } = useSchool();
-  const [selectedRombelSign, setSelectedRombelSign] = useState<string>('ALL');
 
   const activeStudents = students.filter(s => s.statusSiswa === 'aktif');
 
@@ -19,8 +18,6 @@ export const FormatReligionDemographics: React.FC = () => {
     { key: 'Buddha', label: 'Buddha' },
     { key: 'Khonghucu', label: 'Khonghucu' },
   ];
-
-  const selectedRombelObj = ALL_ROMBELS.find(r => r.code === selectedRombelSign);
 
   return (
     <div className="space-y-6">
@@ -35,20 +32,10 @@ export const FormatReligionDemographics: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700">Tanda Tangan:</span>
-            <select
-              value={selectedRombelSign}
-              onChange={e => setSelectedRombelSign(e.target.value)}
-              className="text-xs px-2.5 py-1.5 border border-slate-300 rounded-md bg-white font-medium"
-            >
-              <option value="ALL">Koordinator Keagamaan &amp; Guru PAI</option>
-              {ALL_ROMBELS.map(r => (
-                <option key={r.code} value={r.code}>
-                  Wali {r.label}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700">
+            <span className="text-slate-500">Penandatangan:</span>
+            <span className="text-emerald-800 font-bold">KURNIAWAN SAPUTRA</span>
+            <span className="text-[10px] text-slate-500 font-mono">(Pengelola Statistik)</span>
           </div>
           <button
             onClick={() => window.print()}
@@ -66,8 +53,6 @@ export const FormatReligionDemographics: React.FC = () => {
           formatCode="Format PS-7a"
           formatTitle="JUMLAH SISWA MENURUT KELAS, AGAMA, DAN JENIS KELAMIN"
           subTitle={`KEADAAN TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
-          kelas={selectedRombelObj?.kelas}
-          rombel={selectedRombelObj?.rombel}
         />
 
         <div className="overflow-x-auto">
@@ -168,9 +153,10 @@ export const FormatReligionDemographics: React.FC = () => {
         </div>
 
         <OfficialSignature
-          kelas={selectedRombelObj?.kelas}
-          rombel={selectedRombelObj?.rombel}
-          waliKelasLabel={selectedRombelObj ? `Wali ${selectedRombelObj.label}` : 'Koordinator Keagamaan & Guru PAI'}
+          useAdminOfficer={true}
+          leftTitle="Petugas Administrasi / Pengelola Statistik Kesiswaan"
+          leftName="KURNIAWAN SAPUTRA"
+          leftNip="19890906 202521 1 004"
         />
       </div>
     </div>

@@ -276,7 +276,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
           title: '5. Laporan Mutasi Kesiswaan',
           shortTitle: '5. Mutasi',
           items: [
-            { key: 's14-mutation-semester', label: 'Buku Mutasi Semesteran', formatTag: 'S-14', icon: ArrowLeftRight },
             { key: 'ps14a-mutation-class', label: 'Buku Mutasi Siswa Kelas', formatTag: 'PS-14a', icon: ArrowLeftRight },
           ],
         },

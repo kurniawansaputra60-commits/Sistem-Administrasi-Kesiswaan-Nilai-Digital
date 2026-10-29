@@ -25,6 +25,10 @@ import {
   AlertCircle,
   FileText,
   Plus,
+  Search,
+  BookOpen,
+  PieChart,
+  Filter,
 } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { useAuth, UserRole } from '../context/AuthContext';
@@ -68,6 +72,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
   // Guru / Wali Kelas active class & rombel (locked to assigned NIP rombel)
   const teacherKelas = userProfile?.kelasTugas || '1';
   const teacherRombel = userProfile?.rombelTugas || 'A';
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const [teacherGenderFilter, setTeacherGenderFilter] = useState<'all' | 'L' | 'P'>('all');
 
   const activeStudents = students.filter(s => s.statusSiswa === 'aktif');
   const maleCount = activeStudents.filter(s => s.jenisKelamin === 'L').length;
@@ -148,6 +154,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
   // 1. DASHBOARD KHUSUS GURU / WALI KELAS
   // =========================================================================
   if (activeRole === 'guru_kelas') {
+    const filteredTeacherStudents = teacherRombelStudents.filter(s => {
+      if (teacherGenderFilter !== 'all' && s.jenisKelamin !== teacherGenderFilter) return false;
+      if (teacherSearch.trim()) {
+        const q = teacherSearch.toLowerCase();
+        const matchName = s.namaLengkap.toLowerCase().includes(q);
+        const matchNis = (s.nis || '').includes(q);
+        const matchNisn = (s.nisn || '').includes(q);
+        return matchName || matchNis || matchNisn;
+      }
+      return true;
+    });
+
+    // Demografi Agama Rombel Binaan
+    const religionList = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Khonghucu'];
+
     return (
       <div className="space-y-6">
         {/* Banner Khusus Guru / Wali Kelas */}
@@ -162,7 +183,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                   <span>Portal Guru / Wali Kelas</span>
                 </span>
                 <span className="text-[11px] text-blue-200 font-mono">
-                  {schoolProfile.namaSekolah}
+                  {schoolProfile.namaSekolah} · TP {schoolProfile.tahunAjaranAktif}
                 </span>
               </div>
 
@@ -180,7 +201,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-colors flex items-center gap-1.5"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>+ Siswa Rombel Ini</span>
+                <span>+ Tambah Siswa Rombel Ini</span>
               </button>
               <button
                 onClick={() => onNavigate('student-grades')}
@@ -241,7 +262,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
 
           <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-600">Kehadiran Hari Ini</span>
+              <span className="text-xs font-bold text-slate-600">Tingkat Kehadiran</span>
               <CalendarCheck className="w-4 h-4 text-emerald-600" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
@@ -249,6 +270,80 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
               <span className="text-xs text-emerald-600 font-medium">Optimal</span>
             </div>
             <span className="text-[11px] text-slate-500 mt-1 block">Presensi Format S-8 &amp; S-9</span>
+          </div>
+        </div>
+
+        {/* Ringkasan Demografi Rombel Binaan */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Komposisi Agama Siswa Rombel Ini */}
+          <div className="bg-white p-5 rounded-xl border border-blue-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <PieChart className="w-4 h-4 text-blue-600" />
+                <h3 className="text-xs font-bold text-slate-800">
+                  Komposisi Agama Rombel {teacherKelas} {teacherRombel}
+                </h3>
+              </div>
+              <button
+                onClick={() => onNavigate('ps7a-religion-stats')}
+                className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 cursor-pointer"
+              >
+                Lihat Format PS-7a &rarr;
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              {religionList.map(rel => {
+                const count = teacherRombelStudents.filter(s => s.agama === rel).length;
+                return (
+                  <div key={rel} className="p-2 rounded-lg bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] text-slate-500 block truncate">{rel}</span>
+                    <span className="text-sm font-bold text-slate-900 font-mono">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Akses Dokumen Rombel Binaan */}
+          <div className="bg-white p-5 rounded-xl border border-blue-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-bold text-slate-800">
+                  Buku Induk &amp; Mutasi Kelas {teacherKelas} {teacherRombel}
+                </h3>
+              </div>
+              <button
+                onClick={() => onNavigate('s4-master-book')}
+                className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+              >
+                Buku Induk S-4 &rarr;
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <button
+                onClick={() => onNavigate('s4-master-book')}
+                className="p-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-emerald-800 uppercase">Buku Induk S-4</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-emerald-600 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+                <span className="text-xs font-bold text-slate-900 block mt-1">Data Siswa Rombel Ini</span>
+                <span className="text-[10px] text-slate-500">{teacherRombelStudents.length} siswa binaan</span>
+              </button>
+              <button
+                onClick={() => onNavigate('ps14a-mutation-class')}
+                className="p-3 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 text-left transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-blue-800 uppercase">Format PS-14a</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-blue-600 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+                <span className="text-xs font-bold text-slate-900 block mt-1">Mutasi Siswa Kelas</span>
+                <span className="text-[10px] text-slate-500">Keluar / Masuk Kelas</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -339,34 +434,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
           </div>
         </div>
 
-        {/* Tabel Siswa Binaan Rombel */}
+        {/* Tabel Siswa Binaan Rombel dengan Pencarian & Filter */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50">
+          <div className="px-5 py-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50">
             <div>
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <span>Daftar Siswa Binaan: Kelas {teacherKelas} {teacherRombel}</span>
                 <span className="text-[11px] font-mono bg-blue-100 text-blue-900 px-2 py-0.5 rounded font-bold">
-                  {teacherRombelStudents.length} Siswa
+                  {filteredTeacherStudents.length} / {teacherRombelStudents.length} Siswa
                 </span>
               </h2>
               <p className="text-[11px] text-slate-500 mt-0.5">
                 Daftar peserta didik aktif dalam rombongan belajar yang Anda ampu semester ini
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Search Box */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Cari nama / NIS..."
+                  value={teacherSearch}
+                  onChange={e => setTeacherSearch(e.target.value)}
+                  className="pl-8 pr-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-40"
+                />
+              </div>
+
+              {/* Gender Filter */}
+              <select
+                value={teacherGenderFilter}
+                onChange={e => setTeacherGenderFilter(e.target.value as 'all' | 'L' | 'P')}
+                className="text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-700 font-medium"
+              >
+                <option value="all">Semua JK</option>
+                <option value="L">Laki-laki (L)</option>
+                <option value="P">Perempuan (P)</option>
+              </select>
+
               <button
                 onClick={onOpenAddStudent}
                 className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
               >
                 <UserPlus className="w-3.5 h-3.5" />
-                <span>+ Tambah Siswa</span>
-              </button>
-              <button
-                onClick={() => onNavigate('student-grades')}
-                className="px-3 py-1.5 text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
-              >
-                <Award className="w-3.5 h-3.5" />
-                <span>Input Nilai Rapor Rombel</span>
+                <span>+ Siswa</span>
               </button>
             </div>
           </div>
@@ -386,14 +497,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {teacherRombelStudents.length === 0 ? (
+                {filteredTeacherStudents.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-8 text-center text-slate-500 italic">
-                      Belum ada siswa aktif terdaftar di Kelas {teacherKelas} {teacherRombel}.
+                      {teacherSearch.trim() || teacherGenderFilter !== 'all'
+                        ? 'Tidak ada siswa binaan yang cocok dengan filter pencarian.'
+                        : `Belum ada siswa aktif terdaftar di Kelas ${teacherKelas} ${teacherRombel}.`}
                     </td>
                   </tr>
                 ) : (
-                  teacherRombelStudents.map((s, idx) => (
+                  filteredTeacherStudents.map((s, idx) => (
                     <tr key={s.id} className="hover:bg-blue-50/40">
                       <td className="py-2 px-3 text-center text-slate-500 font-mono">{idx + 1}</td>
                       <td className="py-2 px-3 text-center font-mono font-medium text-slate-700">
@@ -510,7 +623,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
               <span className="text-xs text-emerald-600 font-semibold">Catatan</span>
             </div>
             <span className="text-[11px] text-slate-500 mt-1 block">
-              Laporan Format S-14 &amp; PS-14a
+              Laporan Format PS-14a
             </span>
           </div>
 
@@ -582,14 +695,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
             </button>
 
             <button
-              onClick={() => onNavigate('s14-mutation-semester')}
-              className="p-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-left transition-all cursor-pointer group flex items-center justify-between"
+              onClick={() => onNavigate('ps14a-mutation-class')}
+              className="p-3.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl text-left transition-all cursor-pointer group flex items-center justify-between"
             >
               <div>
-                <h3 className="font-bold text-xs text-slate-900">Laporan Mutasi Kesiswaan Dinas</h3>
-                <p className="text-[11px] text-slate-500">Format S-14 (Keluar &amp; Masuk Peserta Didik)</p>
+                <h3 className="font-bold text-xs text-amber-950">Buku Mutasi Siswa Kelas</h3>
+                <p className="text-[11px] text-amber-800">Format PS-14a (Keluar &amp; Masuk Peserta Didik)</p>
               </div>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight className="w-4 h-4 text-amber-600 group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
         </div>
