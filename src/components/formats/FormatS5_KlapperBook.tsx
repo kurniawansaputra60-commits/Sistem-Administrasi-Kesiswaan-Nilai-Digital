@@ -148,7 +148,7 @@ export const FormatS5_KlapperBook: React.FC = () => {
         </div>
 
         <OfficialSignature
-          leftTitle="Petugas Administrasi / Pengelola Kesiswaan"
+          leftTitle="Petugas Administrasi"
           leftName={schoolProfile.namaPetugasAdmin || 'KURNIAWAN SAPUTRA'}
           leftNip={schoolProfile.nipPetugasAdmin || '19890906 202521 1 004'}
           useAdminOfficer={true}

@@ -3,7 +3,7 @@ import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
 import { Printer, Trophy, Award, Search, PlusCircle, Edit3, Check, Save, X, BookOpen, SlidersHorizontal, Lock } from 'lucide-react';
-import { ExamScoreRecord } from '../../types';
+import { ExamScoreRecord, Student } from '../../types';
 import { isKelasMatch, toRomanClass } from '../../utils/classUtils';
 
 interface FormatS17Props {
@@ -28,6 +28,9 @@ export const FormatS17_ExamResults: React.FC<FormatS17Props> = ({ onNavigateToLe
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingScore, setEditingScore] = useState<ExamScoreRecord | null>(null);
 
+  // Individual Student Print State
+  const [printStudent, setPrintStudent] = useState<{ record: ExamScoreRecord; student?: Student } | null>(null);
+
   // Daftar Mata Pelajaran Resmi (IPAS menggantikan IPA & IPS, ditambah Bahasa Sunda dan Kokurikuler)
   const subjects = [
     { fullName: 'Pendidikan Agama & BP', short: 'PAI' },
@@ -47,17 +50,70 @@ export const FormatS17_ExamResults: React.FC<FormatS17Props> = ({ onNavigateToLe
     s => s.statusSiswa === 'aktif' && isKelasMatch(s.kelasSekarang, effectiveClass) && (s.rombel || 'A') === effectiveRombel
   );
 
-  // Urutkan berdasarkan peringkat nilai tertinggi
-  const sortedScores = [...examScores].sort((a, b) => b.jumlahNilai - a.jumlahNilai);
+  // Gabungkan seluruh siswa di rombel binaan ini dengan examScores atau buat nilai dari nilaiSemester jika belum ada
+  const rawClassScores: ExamScoreRecord[] = classStudents.map(st => {
+    const existing = examScores.find(e => e.studentId === st.id || (e.nis === st.nis && isKelasMatch(e.kelas, effectiveClass)));
+    if (existing) {
+      return {
+        ...existing,
+        studentId: st.id,
+        nis: st.nis,
+        namaLengkap: st.namaLengkap,
+        jenisKelamin: st.jenisKelamin,
+        kelas: effectiveClass,
+        rombel: effectiveRombel,
+      };
+    }
 
-  const filtered = sortedScores.filter(s => {
-    const matchClass = isKelasMatch(s.kelas, effectiveClass);
-    const matchRombel = (s.rombel || 'A') === effectiveRombel;
+    // Ambil nilai semester jika ada atau buat default
+    const semKey = `${schoolProfile.tahunAjaranAktif}-1`;
+    const gradesFromStudent = st.nilaiSemester?.[semKey];
+
+    const mapelScores = subjects.map(s => {
+      const matchGrade = gradesFromStudent?.find(g =>
+        g.subjectName.toLowerCase().includes(s.short.toLowerCase()) ||
+        g.subjectName.toLowerCase().includes(s.fullName.toLowerCase())
+      );
+      return {
+        mapel: s.fullName,
+        nilai: matchGrade ? matchGrade.nilaiAkhir : 85,
+      };
+    });
+
+    const sum = mapelScores.reduce((acc, m) => acc + m.nilai, 0);
+    const avg = Math.round((sum / subjects.length) * 10) / 10;
+
+    return {
+      studentId: st.id,
+      nomorPeserta: `UAS-${effectiveClass}-${st.nis.slice(-3)}`,
+      nis: st.nis,
+      namaLengkap: st.namaLengkap,
+      jenisKelamin: st.jenisKelamin,
+      kelas: effectiveClass,
+      rombel: effectiveRombel,
+      mapelScores,
+      jumlahNilai: sum,
+      rataRata: avg,
+      ranking: 1,
+      prestasi: avg >= kkmAcuan ? 'Tuntas Memuaskan' : 'Perlu Remidial',
+    };
+  });
+
+  // Urutkan berdasarkan rata-rata nilai tertinggi
+  const sortedScores = [...rawClassScores].sort((a, b) => b.rataRata - a.rataRata);
+
+  // Beri rangking berurutan
+  const rankedScores = sortedScores.map((score, idx) => ({
+    ...score,
+    ranking: idx + 1,
+  }));
+
+  const filtered = rankedScores.filter(s => {
     const matchQuery =
       s.namaLengkap.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.nomorPeserta.includes(searchQuery) ||
+      s.nomorPeserta.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.nis.includes(searchQuery);
-    return matchClass && matchRombel && matchQuery;
+    return matchQuery;
   });
 
   const handleOpenEdit = (scoreRec: ExamScoreRecord) => {
@@ -225,14 +281,6 @@ export const FormatS17_ExamResults: React.FC<FormatS17Props> = ({ onNavigateToLe
           )}
 
           <button
-            onClick={handleOpenNew}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 text-white text-xs font-semibold rounded-md hover:bg-emerald-800 cursor-pointer shadow-xs transition-colors"
-          >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span>Input Nilai Siswa</span>
-          </button>
-
-          <button
             onClick={() => window.print()}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md hover:bg-slate-900 cursor-pointer shadow-xs"
           >
@@ -287,7 +335,7 @@ export const FormatS17_ExamResults: React.FC<FormatS17Props> = ({ onNavigateToLe
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={subjects.length + 7} className="border border-slate-800 p-6 text-center text-slate-500 italic">
-                    Belum ada rekaman nilai UAS untuk kelas {effectiveClass}. Klik tombol <strong>"Input Nilai Siswa"</strong> di atas untuk memasukkan data nilai.
+                    Belum ada siswa aktif terdaftar di Kelas {effectiveClass} Rombel {effectiveRombel}.
                   </td>
                 </tr>
               ) : (
@@ -323,14 +371,14 @@ export const FormatS17_ExamResults: React.FC<FormatS17Props> = ({ onNavigateToLe
                       {row.rataRata.toFixed(1)}
                     </td>
                     <td className="border border-slate-800 p-2 font-mono font-extrabold">
-                      {idx === 0 ? (
+                      {row.ranking === 1 ? (
                         <span className="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded font-black">1</span>
-                      ) : idx === 1 ? (
+                      ) : row.ranking === 2 ? (
                         <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded font-bold">2</span>
-                      ) : idx === 2 ? (
+                      ) : row.ranking === 3 ? (
                         <span className="text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded font-bold">3</span>
                       ) : (
-                        idx + 1
+                        row.ranking
                       )}
                     </td>
                     <td className="border border-slate-800 p-2 text-left text-[10px] font-medium text-slate-700">
@@ -338,11 +386,12 @@ export const FormatS17_ExamResults: React.FC<FormatS17Props> = ({ onNavigateToLe
                     </td>
                     <td className="border border-slate-800 p-1.5 text-center no-print">
                       <button
-                        onClick={() => handleOpenEdit(row)}
-                        className="px-2 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 rounded text-[11px] font-semibold flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                        onClick={() => setPrintStudent({ record: row, student: classStudents.find(s => s.id === row.studentId) })}
+                        className="px-2.5 py-1 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-300 rounded text-[11px] font-bold flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                        title="Cetak Hasil UAS Siswa Ini"
                       >
-                        <Edit3 className="w-3 h-3 text-emerald-600" />
-                        <span>Input/Edit</span>
+                        <Printer className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Cetak</span>
                       </button>
                     </td>
                   </tr>
@@ -354,6 +403,114 @@ export const FormatS17_ExamResults: React.FC<FormatS17Props> = ({ onNavigateToLe
 
         <OfficialSignature kelas={effectiveClass} rombel={effectiveRombel} />
       </div>
+
+      {/* Modal Cetak Lembar Nilai Individual Siswa */}
+      {printStudent && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto no-print">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl border border-slate-200 overflow-hidden text-xs my-6 animate-in fade-in duration-200">
+            <div className="no-print px-5 py-3 bg-slate-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Printer className="w-4 h-4 text-emerald-400" />
+                <span className="font-bold text-xs">Cetak Hasil Evaluasi Individual - {printStudent.record.namaLengkap}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Cetak Lembar Nilai Siswa Ini</span>
+                </button>
+                <button
+                  onClick={() => setPrintStudent(null)}
+                  className="p-1 text-slate-300 hover:text-white rounded cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content Sheet to Print */}
+            <div className="p-8 space-y-5 bg-white text-slate-900 print:p-0 print:m-0">
+              <OfficialKop
+                formatCode="Format S-17 (Individual)"
+                title="LEMBAR HASIL EVALUASI / RAFIK NILAI UJIAN AKHIR SEMESTER (UAS)"
+                subtitle={`TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
+                kelas={`${effectiveClass} - ${effectiveRombel}`}
+              />
+
+              {/* Data Siswa */}
+              <div className="grid grid-cols-2 gap-4 p-3.5 bg-slate-50 border border-slate-300 rounded-lg text-xs">
+                <div className="space-y-1">
+                  <div>Nama Lengkap Siswa : <strong className="text-slate-900 font-bold">{printStudent.record.namaLengkap}</strong></div>
+                  <div>NIS / NISN : <span className="font-mono font-bold">{printStudent.record.nis} / {printStudent.student?.nisn || '-'}</span></div>
+                  <div>Nomor Peserta Ujian : <span className="font-mono font-semibold">{printStudent.record.nomorPeserta}</span></div>
+                </div>
+                <div className="space-y-1">
+                  <div>Tingkat Kelas / Rombel : <span className="font-bold">Kelas {effectiveClass} (Rombel {effectiveRombel})</span></div>
+                  <div>Jenis Kelamin : <span className="font-bold">{printStudent.record.jenisKelamin === 'L' ? 'Laki-Laki (L)' : 'Perempuan (P)'}</span></div>
+                  <div>Satuan Pendidikan : <span className="font-bold">{schoolProfile.namaSekolah}</span></div>
+                </div>
+              </div>
+
+              {/* Tabel Nilai */}
+              <table className="w-full border-collapse border border-slate-800 text-xs">
+                <thead className="bg-slate-100 font-bold text-center">
+                  <tr>
+                    <th className="border border-slate-800 p-2 w-10">No</th>
+                    <th className="border border-slate-800 p-2 text-left">Mata Pelajaran</th>
+                    <th className="border border-slate-800 p-2 w-20">KKM</th>
+                    <th className="border border-slate-800 p-2 w-24">Nilai UAS</th>
+                    <th className="border border-slate-800 p-2 w-32">Status Ketuntasan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subjects.map((sub, idx) => {
+                    const scoreObj = printStudent.record.mapelScores.find(m => m.mapel === sub.fullName || m.mapel === sub.short);
+                    const val = scoreObj ? scoreObj.nilai : 80;
+                    const isTuntas = val >= kkmAcuan;
+
+                    return (
+                      <tr key={sub.fullName} className="hover:bg-slate-50">
+                        <td className="border border-slate-800 p-2 text-center font-mono">{idx + 1}</td>
+                        <td className="border border-slate-800 p-2 font-medium">{sub.fullName}</td>
+                        <td className="border border-slate-800 p-2 text-center font-mono">{kkmAcuan}</td>
+                        <td className="border border-slate-800 p-2 text-center font-mono font-bold text-slate-900">{val}</td>
+                        <td className="border border-slate-800 p-2 text-center font-bold">
+                          <span className={isTuntas ? 'text-emerald-800' : 'text-rose-800'}>
+                            {isTuntas ? 'TUNTAS' : 'REMIDI'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="bg-slate-50 font-bold">
+                  <tr>
+                    <td colSpan={3} className="border border-slate-800 p-2 text-right">JUMLAH TOTAL NILAI:</td>
+                    <td className="border border-slate-800 p-2 text-center font-mono text-sm text-slate-900">{printStudent.record.jumlahNilai}</td>
+                    <td className="border border-slate-800 p-2"></td>
+                  </tr>
+                  <tr>
+                    <td colSpan={3} className="border border-slate-800 p-2 text-right">RATA-RATA NILAI:</td>
+                    <td className="border border-slate-800 p-2 text-center font-mono text-sm text-emerald-950 font-extrabold">{printStudent.record.rataRata.toFixed(1)}</td>
+                    <td className="border border-slate-800 p-2 text-center text-emerald-800">
+                      PERINGKAT {printStudent.record.ranking} DARI {classStudents.length} SISWA
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              <div className="p-3 bg-slate-50 border border-slate-300 rounded text-xs font-semibold flex items-center justify-between">
+                <span>Keterangan Prestasi : <strong>{printStudent.record.prestasi}</strong></span>
+                <span>Status Kelulusan UAS : <span className="text-emerald-800 uppercase">{printStudent.record.rataRata >= kkmAcuan ? 'MEMENUHI SYARAT (LULUS)' : 'PERLU PENDAMPINGAN'}</span></span>
+              </div>
+
+              <OfficialSignature kelas={effectiveClass} rombel={effectiveRombel} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Input & Edit Nilai UAS Siswa */}
       {isModalOpen && editingScore && (

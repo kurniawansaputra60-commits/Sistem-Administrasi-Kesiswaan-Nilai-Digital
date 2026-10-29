@@ -185,7 +185,7 @@ export const FormatS2_NewStudentCandidates: React.FC<FormatS2Props> = ({ onOpenA
 
         <OfficialSignature
           useAdminOfficer={true}
-          leftTitle="Ketua Panitia PPDB / Petugas Penerimaan"
+          leftTitle="Ketua Panitia PPDB"
           leftName="KURNIAWAN SAPUTRA"
           leftNip="19890906 202521 1 004"
         />

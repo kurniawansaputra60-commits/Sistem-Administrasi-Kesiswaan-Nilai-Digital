@@ -227,6 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
           shortTitle: 'Ruang Guru',
           items: [
             { key: 'dashboard', label: 'Dashboard Wali Kelas', icon: LayoutDashboard },
+            { key: 'student-grades', label: 'Input & Leger Nilai Rapor', formatTag: 'LEGER', icon: Award },
           ],
         },
         // Buku Utama Data Siswa untuk Wali Kelas HANYA Buku Induk S-4

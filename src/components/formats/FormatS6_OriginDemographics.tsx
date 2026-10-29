@@ -269,7 +269,7 @@ export const FormatS6_OriginDemographics: React.FC = () => {
 
         <OfficialSignature
           useAdminOfficer={true}
-          leftTitle="Petugas Administrasi / Pengelola Statistik Kesiswaan"
+          leftTitle="Petugas Administrasi"
           leftName="KURNIAWAN SAPUTRA"
           leftNip="19890906 202521 1 004"
         />

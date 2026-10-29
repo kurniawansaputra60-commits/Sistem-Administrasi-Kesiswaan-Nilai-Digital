@@ -116,7 +116,7 @@ export const FormatS3_AcceptedClass1: React.FC = () => {
 
         <OfficialSignature
           useAdminOfficer={true}
-          leftTitle="Panitia PPDB / Pengelola Siswa Baru"
+          leftTitle="Ketua Panitia PPDB"
           leftName="KURNIAWAN SAPUTRA"
           leftNip="19890906 202521 1 004"
         />

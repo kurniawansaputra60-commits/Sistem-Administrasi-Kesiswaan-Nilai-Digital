@@ -205,7 +205,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                 <span>+ Tambah Siswa Rombel Ini</span>
               </button>
               <button
-                onClick={() => onNavigate('student-grades')}
+                onClick={() => onNavigate('s17-exam-results')}
                 className="px-4 py-2 bg-white text-blue-900 hover:bg-blue-50 font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-colors flex items-center gap-1.5"
               >
                 <Award className="w-4 h-4" />
@@ -393,7 +393,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <button
-              onClick={() => onNavigate('student-grades')}
+              onClick={() => onNavigate('s17-exam-results')}
               className="p-3.5 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 hover:border-blue-400 rounded-xl text-left transition-all cursor-pointer group shadow-2xs hover:shadow-xs flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
@@ -559,7 +559,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                       </td>
                       <td className="py-2 px-3 text-right space-x-1.5">
                         <button
-                          onClick={() => onNavigate('student-grades')}
+                          onClick={() => onNavigate('s17-exam-results')}
                           className="px-2 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 cursor-pointer"
                         >
                           Nilai
@@ -1254,7 +1254,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                       Buku Induk
                     </button>
                     <button
-                      onClick={() => onNavigate('student-grades')}
+                      onClick={() => onNavigate('s17-exam-results')}
                       className="text-[11px] text-blue-700 font-bold hover:underline cursor-pointer"
                     >
                       Nilai Rapor
