@@ -16,17 +16,19 @@ export const FormatS7_AgeDemographics: React.FC = () => {
 
   const [rombelFilter, setRombelFilter] = useState<string>(isWaliKelas ? userRombelCode : 'ALL');
 
+  const currentRombelFilter = isWaliKelas ? userRombelCode : rombelFilter;
+
   const activeStudents = students.filter(s => {
     if (s.statusSiswa !== 'aktif') return false;
-    if (rombelFilter === 'ALL') return true;
-    if (rombelFilter === 'A' || rombelFilter === 'B') {
+    if (currentRombelFilter === 'ALL') return true;
+    if (currentRombelFilter === 'A' || currentRombelFilter === 'B') {
       const sRombel = s.rombel || 'A';
-      return sRombel === rombelFilter;
+      return sRombel === currentRombelFilter;
     }
     // Specific rombel e.g. '1A'
-    if (rombelFilter.length === 2) {
-      const k = rombelFilter.charAt(0);
-      const r = rombelFilter.charAt(1);
+    if (currentRombelFilter.length === 2) {
+      const k = currentRombelFilter.charAt(0);
+      const r = currentRombelFilter.charAt(1);
       const matchKelas = normalizeKelas(s.kelasSekarang) === k;
       const matchRombel = (s.rombel || 'A') === r;
       return matchKelas && matchRombel;
@@ -57,11 +59,11 @@ export const FormatS7_AgeDemographics: React.FC = () => {
     { label: '> 12 Tahun', min: 13, max: 99 },
   ];
 
-  const filterLabel = rombelFilter === 'ALL'
+  const filterLabel = currentRombelFilter === 'ALL'
     ? 'SEMUA ROMBEL'
-    : rombelFilter === 'A' || rombelFilter === 'B'
-    ? `HANYA ROMBEL ${rombelFilter}`
-    : `ROMBEL BINAAN KELAS ${rombelFilter.charAt(0)} ${rombelFilter.charAt(1)}`;
+    : currentRombelFilter === 'A' || currentRombelFilter === 'B'
+    ? `HANYA ROMBEL ${currentRombelFilter}`
+    : `ROMBEL BINAAN KELAS ${currentRombelFilter.charAt(0)} ${currentRombelFilter.charAt(1)}`;
 
   return (
     <div className="space-y-6">
@@ -73,40 +75,42 @@ export const FormatS7_AgeDemographics: React.FC = () => {
               Format S-7: Jumlah Siswa Menurut Usia, Kelas, dan Jenis Kelamin
             </h2>
             {isWaliKelas && (
-              <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold border border-blue-200">
-                Rombel Binaan: Kelas {userProfile?.kelasTugas || '1'} {userProfile?.rombelTugas || 'A'}
+              <span className="bg-blue-100 text-blue-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold border border-blue-200">
+                📌 Terkunci: Kelas {userProfile?.kelasTugas || '1'} {userProfile?.rombelTugas || 'A'}
               </span>
             )}
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Matriks statistik usia siswa per 1 Juli tahun ajaran {schoolProfile.tahunAjaranAktif} (Kelas 1 - 6)
+            Matriks statistik usia siswa per 1 Juli tahun ajaran {schoolProfile.tahunAjaranAktif} {isWaliKelas ? `(Khusus Rombel Binaan Kelas ${userProfile?.kelasTugas || '1'} ${userProfile?.rombelTugas || 'A'})` : '(Kelas 1 - 6)'}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-50 p-1.5 border border-slate-200 rounded-lg">
-            <Filter className="w-3.5 h-3.5 text-slate-500 ml-1" />
-            <span className="text-xs font-semibold text-slate-700">Filter Rombel:</span>
-            <select
-              value={rombelFilter}
-              onChange={e => setRombelFilter(e.target.value)}
-              className="text-xs px-2.5 py-1 border border-slate-300 rounded-md bg-white font-semibold text-slate-800 cursor-pointer"
-            >
-              {isWaliKelas && (
-                <option value={userRombelCode}>
-                  📌 Rombel Binaan (Kelas {userProfile?.kelasTugas} {userProfile?.rombelTugas})
-                </option>
-              )}
-              <option value="ALL">Semua Kelas &amp; Rombel</option>
-              {ALL_ROMBELS.map(r => (
-                <option key={r.code} value={r.code}>
-                  {r.label}
-                </option>
-              ))}
-              <option value="A">Rombel A (Semua Tingkat)</option>
-              <option value="B">Rombel B (Semua Tingkat)</option>
-            </select>
-          </div>
+          {!isWaliKelas ? (
+            <div className="flex items-center gap-2 bg-slate-50 p-1.5 border border-slate-200 rounded-lg">
+              <Filter className="w-3.5 h-3.5 text-slate-500 ml-1" />
+              <span className="text-xs font-semibold text-slate-700">Filter Rombel:</span>
+              <select
+                value={rombelFilter}
+                onChange={e => setRombelFilter(e.target.value)}
+                className="text-xs px-2.5 py-1 border border-slate-300 rounded-md bg-white font-semibold text-slate-800 cursor-pointer"
+              >
+                <option value="ALL">Semua Kelas &amp; Rombel</option>
+                {ALL_ROMBELS.map(r => (
+                  <option key={r.code} value={r.code}>
+                    {r.label}
+                  </option>
+                ))}
+                <option value="A">Rombel A (Semua Tingkat)</option>
+                <option value="B">Rombel B (Semua Tingkat)</option>
+              </select>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs font-semibold text-blue-900">
+              <User className="w-3.5 h-3.5 text-blue-600" />
+              <span>Rombel Binaan: Kelas {userProfile?.kelasTugas} {userProfile?.rombelTugas}</span>
+            </div>
+          )}
 
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700">
             <span className="text-slate-500">Penandatangan:</span>
@@ -126,24 +130,14 @@ export const FormatS7_AgeDemographics: React.FC = () => {
 
       {/* Wali Kelas Badge Notice */}
       {isWaliKelas && (
-        <div className="no-print bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between text-xs text-blue-900 shadow-2xs">
-          <div className="flex items-center gap-2.5">
-            <User className="w-4 h-4 text-blue-600 shrink-0" />
-            <div>
-              <span className="font-bold">Mode Wali Kelas: </span>
-              <span>
-                Menampilkan statistik usia untuk <strong className="underline">{userProfile?.displayName}</strong> (Wali Kelas {userProfile?.kelasTugas} {userProfile?.rombelTugas}).
-              </span>
-            </div>
+        <div className="no-print bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2.5 text-xs text-blue-900 shadow-2xs">
+          <User className="w-4 h-4 text-blue-600 shrink-0" />
+          <div>
+            <span className="font-bold">Otorisasi Wali Kelas: </span>
+            <span>
+              Tampilan statistik usia terpisah &amp; terkunci khusus Rombel Binaan <strong>Kelas {userProfile?.kelasTugas} {userProfile?.rombelTugas}</strong> ({userProfile?.displayName}).
+            </span>
           </div>
-          {rombelFilter !== userRombelCode && (
-            <button
-              onClick={() => setRombelFilter(userRombelCode)}
-              className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-blue-100 hover:bg-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-            >
-              Kembali ke Rombel Binaan
-            </button>
-          )}
         </div>
       )}
 
