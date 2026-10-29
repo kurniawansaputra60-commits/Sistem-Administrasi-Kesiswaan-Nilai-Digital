@@ -34,11 +34,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       setErrorMsg('Silakan masukkan Username NIP atau NIK Anda.');
       return;
     }
-    const success = loginWithNipAndPassword(nipInput, passwordInput);
-    if (success) {
+    const result = loginWithNipAndPassword(nipInput, passwordInput);
+    if (result.success) {
       onClose();
     } else {
-      setErrorMsg('NIP, NIK, atau Password tidak cocok dengan daftar GTK SD NEGERI 1 CEMPAKA.');
+      setErrorMsg(result.message || 'NIP, NIK, atau Password tidak cocok dengan daftar GTK SD NEGERI 1 CEMPAKA.');
     }
   };
 

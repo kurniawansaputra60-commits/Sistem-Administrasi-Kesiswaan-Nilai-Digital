@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { initialSchoolProfile } from '../data/initialData';
-import { Building, ShieldCheck, Award, User, Lock, Sparkles, AlertCircle, CheckCircle2, KeyRound, LogIn, ChevronDown } from 'lucide-react';
+import { useAuth, UserRole } from '../context/AuthContext';
+import { ShieldCheck, Award, User, Lock, AlertCircle, CheckCircle2, KeyRound, LogIn } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { signInWithGoogle, loginWithNipAndPassword, loginWithDemoRole, loading } = useAuth();
   const [usernameNip, setUsernameNip] = useState('');
   const [passwordNip, setPasswordNip] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [selectedQuickTeacherNip, setSelectedQuickTeacherNip] = useState<string>('');
 
   const handleGoogleLogin = async () => {
     setErrorMsg(null);
@@ -16,27 +14,26 @@ export const LoginPage: React.FC = () => {
       await signInWithGoogle();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg('Gagal masuk dengan Google. Silakan coba lagi atau gunakan login NIP Penugasan.');
+      setErrorMsg('Gagal masuk dengan Google. Silakan coba lagi atau gunakan login NIP / NIK.');
     }
   };
 
   const handleNipLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    if (!usernameNip.trim()) {
+      setErrorMsg('Silakan masukkan Username NIP atau NIK Anda.');
+      return;
+    }
     const result = loginWithNipAndPassword(usernameNip, passwordNip);
     if (!result.success) {
-      setErrorMsg(result.message || 'Gagal login NIP. Silakan periksa kembali NIP Anda.');
+      setErrorMsg(result.message || 'NIP, NIK, atau Password tidak cocok dengan daftar GTK SD NEGERI 1 CEMPAKA.');
     }
   };
 
-  const handleQuickTeacherSelect = (nip: string) => {
-    setSelectedQuickTeacherNip(nip);
-    setUsernameNip(nip);
-    setPasswordNip(nip);
-    setErrorMsg(null);
+  const handleDemoLogin = (role: UserRole) => {
+    loginWithDemoRole(role);
   };
-
-  const waliList = initialSchoolProfile.waliKelasList || [];
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden font-sans">
@@ -68,18 +65,18 @@ export const LoginPage: React.FC = () => {
               SD NEGERI 1 CEMPAKA
             </h1>
             <p className="text-xs text-emerald-200 mt-2 leading-relaxed">
-              Sistem Administrasi Kesiswaan &amp; Buku Induk Terproteksi NIP Guru Binaan
+              Sistem Administrasi Kesiswaan &amp; Buku Induk Terproteksi NIP / NIK Guru Binaan
             </p>
           </div>
 
           <div className="mt-8 pt-6 border-t border-emerald-700/50 space-y-3">
             <div className="flex items-start gap-2.5 text-xs text-emerald-100">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <span>Login Google &amp; Otentikasi NIP Binaan</span>
+              <span>Login Google &amp; Otentikasi NIP / NIK Guru</span>
             </div>
             <div className="flex items-start gap-2.5 text-xs text-emerald-100">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <span>Privasi Terkunci: Rombel Binaan Lain Tidak Bisa Dilihat</span>
+              <span>Guru Non-ASN Dapat Masuk Menggunakan NIK 16 Digit</span>
             </div>
             <div className="flex items-start gap-2.5 text-xs text-emerald-100">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -100,7 +97,7 @@ export const LoginPage: React.FC = () => {
               <span>Masuk Akun SD NEGERI 1 CEMPAKA</span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Gunakan Akun Google atau Login NIP Penugasan untuk mengakses Rombel Binaan Anda.
+              Masukkan Username dan Password (NIP atau NIK) untuk mengakses Rombel Binaan Anda.
             </p>
           </div>
 
@@ -111,51 +108,26 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {/* Opsi 1: Login dengan Username NIP & Password NIP */}
+          {/* Form Login: Username & Password NIP / NIK */}
           <form onSubmit={handleNipLoginSubmit} className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 <KeyRound className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Masuk NIP Penugasan Rombel</span>
+                <span>Login GTK (NIP / NIK)</span>
               </label>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
-                Bina Rombel
+                Akses Sesuai Rombel
               </span>
-            </div>
-
-            {/* Quick Selector NIP Wali Kelas */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Pilih Nama Guru / Wali Kelas (Atau Ketik NIP):
-              </label>
-              <select
-                value={selectedQuickTeacherNip}
-                onChange={e => handleQuickTeacherSelect(e.target.value)}
-                className="w-full text-xs font-semibold px-2.5 py-2 border border-slate-300 rounded-lg bg-white outline-none focus:border-emerald-600 cursor-pointer"
-              >
-                <option value="">-- Pilih Penugasan NIP --</option>
-                <option value={initialSchoolProfile.nipKepalaSekolah}>
-                  🎓 Kepala Sekolah: {initialSchoolProfile.namaKepalaSekolah} (NIP: {initialSchoolProfile.nipKepalaSekolah})
-                </option>
-                {waliList.map(w => (
-                  <option key={w.id} value={w.nip}>
-                    👨‍🏫 Wali Kelas {w.kelas} {w.rombel || 'A'}: {w.nama} (NIP: {w.nip})
-                  </option>
-                ))}
-                <option value="198001012005011001">
-                  🛡️ Administrator Utama (Akses Penuh Sistem)
-                </option>
-              </select>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Username NIP:
+                  Username NIP / NIK:
                 </label>
                 <input
                   type="text"
-                  placeholder="Contoh: 19850312 201001 2 021"
+                  placeholder="Masukkan NIP atau 16-Digit NIK"
                   value={usernameNip}
                   onChange={e => setUsernameNip(e.target.value)}
                   className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white font-mono focus:border-emerald-600 outline-none"
@@ -165,11 +137,11 @@ export const LoginPage: React.FC = () => {
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Password NIP:
+                  Password NIP / NIK:
                 </label>
                 <input
                   type="password"
-                  placeholder="Password NIP..."
+                  placeholder="Masukkan Password (NIP / NIK)"
                   value={passwordNip}
                   onChange={e => setPasswordNip(e.target.value)}
                   className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white font-mono focus:border-emerald-600 outline-none"
@@ -178,19 +150,23 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
+            <div className="text-[10px] text-slate-500 italic">
+              * Guru Non-ASN / Honorer yang belum memiliki NIP dapat masuk menggunakan 16 digit NIK.
+            </div>
+
             <button
               type="submit"
               className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
             >
               <LogIn className="w-4 h-4" />
-              <span>Masuk Rombel Binaan Saya</span>
+              <span>Masuk Berdasarkan Rombel Binaan</span>
             </button>
           </form>
 
           <div className="relative flex items-center justify-center my-1">
             <div className="border-t border-slate-200 w-full"></div>
             <span className="bg-white px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest absolute">
-              Atau Google Sign-In
+              Atau Google / Akses Cepat Peran
             </span>
           </div>
 
@@ -200,9 +176,9 @@ export const LoginPage: React.FC = () => {
               type="button"
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full py-3 px-4 bg-white border-2 border-slate-200 hover:border-emerald-600 rounded-xl text-slate-800 font-bold text-xs flex items-center justify-center gap-3 transition-all cursor-pointer shadow-xs hover:shadow-md active:scale-[0.99]"
+              className="w-full py-2.5 px-4 bg-white border border-slate-300 hover:border-emerald-600 rounded-xl text-slate-800 font-bold text-xs flex items-center justify-center gap-3 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-[0.99]"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -222,6 +198,38 @@ export const LoginPage: React.FC = () => {
               </svg>
               <span>{loading ? 'Menghubungkan...' : 'Masuk Menggunakan Akun Google'}</span>
             </button>
+          </div>
+
+          {/* Opsi 3: Akses Cepat Peran (Hanya Kepala Sekolah & Guru / Wali Kelas) */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+              Pilihan Akses Peran Cepat:
+            </label>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('kepala_sekolah')}
+                className="p-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-1.5 font-bold text-amber-950 text-[11px] mb-0.5">
+                  <Award className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Kepala Sekolah</span>
+                </div>
+                <p className="text-[9px] text-amber-900 font-semibold">Otorisasi &amp; SK</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('guru_kelas')}
+                className="p-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-1.5 font-bold text-blue-950 text-[11px] mb-0.5">
+                  <User className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Guru / Wali Kelas</span>
+                </div>
+                <p className="text-[9px] text-blue-900 font-semibold">Rombel &amp; Nilai</p>
+              </button>
+            </div>
           </div>
         </div>
       </div>

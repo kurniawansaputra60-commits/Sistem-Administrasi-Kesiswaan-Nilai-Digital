@@ -225,8 +225,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           r = wk1a ? (wk1a.rombel || 'A') : 'A';
           break;
         default:
-          name = 'Administrator Utama';
-          nip = '19800101 200501 1 001';
+          name = initialSchoolProfile.namaKepalaSekolah;
+          nip = initialSchoolProfile.nipKepalaSekolah;
       }
     }
 
