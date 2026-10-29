@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { db, auth } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   SchoolProfile,
   Student,
@@ -39,6 +41,29 @@ import {
 import { generateMySQLDump } from '../utils/mysqlSchema';
 
 export { initialSchoolProfile };
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+}
 
 interface SchoolContextType {
   schoolProfile: SchoolProfile;
@@ -284,7 +309,34 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
-  // Local Storage Synchronizations
+  // Load from Firebase Firestore on mount
+  useEffect(() => {
+    getDoc(doc(db, 'school_data', 'main'))
+      .then(snap => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.schoolProfile) setSchoolProfile(prev => ({ ...prev, ...data.schoolProfile }));
+          if (Array.isArray(data.students)) setStudents(data.students);
+          if (Array.isArray(data.attendances)) setAttendances(data.attendances);
+          if (Array.isArray(data.warningLetters)) setWarningLetters(data.warningLetters);
+          if (Array.isArray(data.transferRequests)) setTransferRequests(data.transferRequests);
+          if (Array.isArray(data.transferOuts)) setTransferOuts(data.transferOuts);
+          if (Array.isArray(data.transferIns)) setTransferIns(data.transferIns);
+          if (Array.isArray(data.mutations)) setMutations(data.mutations);
+          if (Array.isArray(data.examCandidates)) setExamCandidates(data.examCandidates);
+          if (Array.isArray(data.examSessions)) setExamSessions(data.examSessions);
+          if (Array.isArray(data.examScores)) setExamScores(data.examScores);
+          if (Array.isArray(data.gradStudies)) setGradStudies(data.gradStudies);
+          if (Array.isArray(data.achievements)) setAchievements(data.achievements);
+          if (Array.isArray(data.curriculumTargets)) setCurriculumTargets(data.curriculumTargets);
+        }
+      })
+      .catch(err => {
+        handleFirestoreError(err, OperationType.GET, 'school_data/main');
+      });
+  }, []);
+
+  // Local Storage & Cloud Firestore Synchronizations
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(schoolProfile));
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
@@ -301,6 +353,31 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     localStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(achievements));
     localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(curriculumTargets));
     localStorage.setItem(STORAGE_KEYS.MYSQL_CONFIG, JSON.stringify(mysqlConfig));
+
+    // Also sync to Cloud Firebase Firestore actively
+    try {
+      setDoc(doc(db, 'school_data', 'main'), {
+        schoolProfile,
+        students,
+        attendances,
+        warningLetters,
+        transferRequests,
+        transferOuts,
+        transferIns,
+        mutations,
+        examCandidates,
+        examSessions,
+        examScores,
+        gradStudies,
+        achievements,
+        curriculumTargets,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true }).catch((err) => {
+        handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+    }
 
     // Also sync to server background file storage
     try {

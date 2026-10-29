@@ -27,6 +27,11 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
 
+    // School Data collection sync
+    match /school_data/{docId} {
+      allow read, write: if true;
+    }
+
     // School profile settings
     match /school_profile/{profileId} {
       allow read: if true;
