@@ -53,6 +53,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
     achievements,
     attendances,
     downloadMySQLDump,
+    exportDataToJson,
+    importDataFromJson,
   } = useSchool();
 
   // Active role: default to admin if not set
@@ -66,6 +68,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
   const [newWaliNumber, setNewWaliNumber] = useState('');
   const [waliSuccessMsg, setWaliSuccessMsg] = useState<string | null>(null);
   const [waliErrorMsg, setWaliErrorMsg] = useState<string | null>(null);
+
+  // State for JSON Backup & Restore
+  const [backupMsg, setBackupMsg] = useState<string | null>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
+
+  const handleExportJson = () => {
+    try {
+      const jsonStr = exportDataToJson();
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `backup_sistem_kesiswaan_${schoolProfile.npsn || 'sdn1cempaka'}_${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setBackupMsg('Cadangan data JSON berhasil diunduh! Simpan file ini di perangkat Anda untuk pemulihan aman anti hilang.');
+      setTimeout(() => setBackupMsg(null), 5000);
+    } catch (err: any) {
+      setBackupError(`Gagal membuat cadangan JSON: ${err.message}`);
+    }
+  };
+
+  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        const success = importDataFromJson(content);
+        if (success) {
+          setBackupMsg('Pemulihan data seluruh sistem berhasil! Memuat ulang halaman...');
+          setBackupError(null);
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          setBackupError('Format file JSON tidak valid. Pastikan file cadangan sistem benar.');
+        }
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   // Filter rombel for admin inspection
   const [selectedRombelFilter, setSelectedRombelFilter] = useState<string>('all');
@@ -372,6 +418,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                 <span className="text-[10px] text-slate-500">Keluar / Masuk Kelas</span>
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Cadangan & Pemulihan Data Seluruh Sistem (Backup JSON) untuk Guru & Wali Kelas */}
+        <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 p-6 rounded-2xl text-white shadow-md space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-sm md:text-base font-black text-white">
+                  Cadangan &amp; Pemulihan Data Seluruh Sistem (Backup JSON)
+                </h2>
+                <p className="text-xs text-emerald-200 mt-0.5">
+                  Cegah kehilangan data saat menutup browser atau berpindah perangkat di Vercel. Unduh cadangan JSON atau pulihkan data kapan saja.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 shrink-0">
+              <button
+                onClick={handleExportJson}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-2 active:scale-95"
+              >
+                <Download className="w-4 h-4" />
+                <span>Unduh Cadangan (Backup JSON)</span>
+              </button>
+
+              <label className="px-4 py-2.5 bg-white text-emerald-950 hover:bg-emerald-50 font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-2 active:scale-95">
+                <FileText className="w-4 h-4 text-emerald-700" />
+                <span>Pulihkan Data (Restore JSON)</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportJson}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
+          {backupMsg && (
+            <div className="p-3 bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 rounded-xl text-xs flex items-center gap-2 font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{backupMsg}</span>
+            </div>
+          )}
+          {backupError && (
+            <div className="p-3 bg-rose-500/20 border border-rose-400/40 text-rose-200 rounded-xl text-xs flex items-center gap-2 font-medium">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{backupError}</span>
+            </div>
+          )}
+
+          <div className="text-[11px] text-emerald-100/80 flex items-center justify-between">
+            <span>ℹ️ File cadangan mencakup seluruh data siswa, profil sekolah, nilai rapor, presensi, dan mutasi rombel binaan Anda.</span>
+            <span className="font-mono text-emerald-300">Format: .JSON</span>
           </div>
         </div>
 
@@ -939,6 +1043,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
           <span className="text-[11px] text-slate-500 mt-1 block">
             {mutations.length} Mutasi · {achievements.length} Prestasi
           </span>
+        </div>
+      </div>
+
+      {/* Cadangan & Pemulihan Data Seluruh Sistem (Backup JSON) untuk Admin */}
+      <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 p-6 rounded-2xl text-white shadow-md space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 shrink-0">
+              <Database className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm md:text-base font-black text-white">
+                Cadangan &amp; Pemulihan Data Seluruh Sistem (Backup JSON)
+              </h2>
+              <p className="text-xs text-purple-200 mt-0.5">
+                Cegah kehilangan data saat menutup browser atau berpindah perangkat di Vercel. Unduh cadangan JSON atau pulihkan data kapan saja.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              onClick={handleExportJson}
+              className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-2 active:scale-95"
+            >
+              <Download className="w-4 h-4" />
+              <span>Unduh Cadangan (Backup JSON)</span>
+            </button>
+
+            <label className="px-4 py-2.5 bg-white text-purple-950 hover:bg-purple-50 font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-2 active:scale-95">
+              <FileText className="w-4 h-4 text-purple-700" />
+              <span>Pulihkan Data (Restore JSON)</span>
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportJson}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+
+        {backupMsg && (
+          <div className="p-3 bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 rounded-xl text-xs flex items-center gap-2 font-medium">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{backupMsg}</span>
+          </div>
+        )}
+        {backupError && (
+          <div className="p-3 bg-rose-500/20 border border-rose-400/40 text-rose-200 rounded-xl text-xs flex items-center gap-2 font-medium">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{backupError}</span>
+          </div>
+        )}
+
+        <div className="text-[11px] text-purple-100/80 flex items-center justify-between">
+          <span>ℹ️ File cadangan mencakup seluruh data siswa, profil sekolah, nilai rapor, presensi, dan mutasi seluruh rombel sekolah.</span>
+          <span className="font-mono text-purple-300">Format: .JSON</span>
         </div>
       </div>
 
