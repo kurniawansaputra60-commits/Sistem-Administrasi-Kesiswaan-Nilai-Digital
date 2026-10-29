@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
+import { formatIndonesianDate } from '../../utils/classUtils';
 import { Search, Printer, KeyRound } from 'lucide-react';
 
 export const FormatPS5a_MasterKeyBook: React.FC = () => {
@@ -85,9 +86,9 @@ export const FormatPS5a_MasterKeyBook: React.FC = () => {
                 <th className="border border-slate-800 p-2 text-center w-28" rowSpan={2}>Status Terakhir</th>
               </tr>
               <tr className="bg-slate-100">
-                <th className="border border-slate-800 p-1.5 w-24">Tanggal</th>
+                <th className="border border-slate-800 p-1.5 min-w-[100px]">Tanggal</th>
                 <th className="border border-slate-800 p-1.5 w-16">Kelas</th>
-                <th className="border border-slate-800 p-1.5 w-24">Tanggal</th>
+                <th className="border border-slate-800 p-1.5 min-w-[100px]">Tanggal</th>
                 <th className="border border-slate-800 p-1.5 min-w-[120px]">Sebab / Alasan</th>
               </tr>
             </thead>
@@ -103,10 +104,10 @@ export const FormatPS5a_MasterKeyBook: React.FC = () => {
                     <td className="border border-slate-800 p-2 font-mono text-center">{s.nisn}</td>
                     <td className="border border-slate-800 p-2 font-bold">{s.namaLengkap}</td>
                     <td className="border border-slate-800 p-2 text-center font-semibold">{s.jenisKelamin}</td>
-                    <td className="border border-slate-800 p-2 font-mono text-center">{s.tanggalDiterima}</td>
+                    <td className="border border-slate-800 p-2 text-center">{formatIndonesianDate(s.tanggalDiterima)}</td>
                     <td className="border border-slate-800 p-2 text-center">{s.diterimaDiKelas}</td>
-                    <td className="border border-slate-800 p-2 font-mono text-center">
-                      {mutasi ? mutasi.tanggalMutasi : s.statusSiswa === 'lulus' ? '2026-06-20' : '-'}
+                    <td className="border border-slate-800 p-2 text-center">
+                      {mutasi ? formatIndonesianDate(mutasi.tanggalMutasi) : s.statusSiswa === 'lulus' ? '20 Juni 2026' : '-'}
                     </td>
                     <td className="border border-slate-800 p-2 text-[10px]">
                       {mutasi ? mutasi.alasanMutasi : s.statusSiswa === 'lulus' ? 'Lulus Satuan Pendidikan' : '-'}

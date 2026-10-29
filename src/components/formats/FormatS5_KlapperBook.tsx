@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
+import { formatIndonesianDate, formatPlaceAndBirthDate } from '../../utils/classUtils';
 import { Search, Printer } from 'lucide-react';
 
 export const FormatS5_KlapperBook: React.FC = () => {
@@ -103,7 +104,7 @@ export const FormatS5_KlapperBook: React.FC = () => {
                 <th className="border border-slate-800 p-2 w-20" rowSpan={2}>NIS</th>
                 <th className="border border-slate-800 p-2 w-24" rowSpan={2}>NISN</th>
                 <th className="border border-slate-800 p-2 min-w-[120px]" colSpan={2}>Penerimaan</th>
-                <th className="border border-slate-800 p-2 w-24" rowSpan={2}>Tgl Lahir</th>
+                <th className="border border-slate-800 p-2 min-w-[140px]" rowSpan={2}>Tempat, Tgl Lahir</th>
                 <th className="border border-slate-800 p-2 min-w-[140px]" rowSpan={2}>Alamat Rumah</th>
                 <th className="border border-slate-800 p-2 min-w-[120px]" colSpan={2}>Meninggalkan Sekolah</th>
                 <th className="border border-slate-800 p-2 min-w-[110px]" rowSpan={2}>Ket. (Kelas Sekarang)</th>
@@ -127,12 +128,12 @@ export const FormatS5_KlapperBook: React.FC = () => {
                       {student.nis}
                     </td>
                     <td className="border border-slate-800 p-2 font-mono text-center">{student.nisn}</td>
-                    <td className="border border-slate-800 p-2 font-mono text-center">{student.tanggalDiterima}</td>
+                    <td className="border border-slate-800 p-2 text-center">{formatIndonesianDate(student.tanggalDiterima)}</td>
                     <td className="border border-slate-800 p-2 text-center">{student.diterimaDiKelas}</td>
-                    <td className="border border-slate-800 p-2 font-mono text-center">{student.tanggalLahir}</td>
+                    <td className="border border-slate-800 p-2 text-left">{formatPlaceAndBirthDate(student.tempatLahir, student.tanggalLahir)}</td>
                     <td className="border border-slate-800 p-2 text-[10px]">{student.alamat}</td>
-                    <td className="border border-slate-800 p-2 font-mono text-center">
-                      {transferOut ? transferOut.tanggalSurat : student.statusSiswa === 'lulus' ? 'Lulus 2026' : '-'}
+                    <td className="border border-slate-800 p-2 text-center">
+                      {transferOut ? formatIndonesianDate(transferOut.tanggalSurat) : student.statusSiswa === 'lulus' ? '20 Juni 2026' : '-'}
                     </td>
                     <td className="border border-slate-800 p-2 text-[10px]">
                       {transferOut ? transferOut.alasanPindah : student.statusSiswa === 'lulus' ? 'Telah Lulus Satuan Pendidikan' : '-'}

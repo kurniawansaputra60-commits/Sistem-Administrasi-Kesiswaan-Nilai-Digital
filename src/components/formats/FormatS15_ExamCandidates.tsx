@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
-import { isKelasMatch, toRomanClass } from '../../utils/classUtils';
+import { isKelasMatch, toRomanClass, formatPlaceAndBirthDate } from '../../utils/classUtils';
 import { Printer, CheckCircle2, UserCheck, Plus, Lock } from 'lucide-react';
 
 export const FormatS15_ExamCandidates: React.FC = () => {
@@ -12,6 +12,7 @@ export const FormatS15_ExamCandidates: React.FC = () => {
 
   const [selectedClass, setSelectedClass] = useState<string>('VI');
   const [selectedRombel, setSelectedRombel] = useState<string>('A');
+  const [selectedExamCategory, setSelectedExamCategory] = useState<'ASAS' | 'ASAT' | 'ASAJ'>('ASAS');
 
   const effectiveClass = isGuruKelas ? toRomanClass(userProfile?.kelasTugas) : selectedClass;
   const effectiveRombel = isGuruKelas ? (userProfile?.rombelTugas || 'A') : selectedRombel;
@@ -39,12 +40,12 @@ export const FormatS15_ExamCandidates: React.FC = () => {
         nisn: st.nisn,
         namaLengkap: st.namaLengkap,
         jenisKelamin: st.jenisKelamin,
-        tempatTanggalLahir: `${st.tempatLahir}, ${st.tanggalLahir}`,
+        tempatTanggalLahir: formatPlaceAndBirthDate(st.tempatLahir, st.tanggalLahir),
         kelas: st.kelasSekarang,
         syaratNilai: 'Lengkap',
         syaratPresensi: 'Memenuhi (>=85%)',
         statusVerifikasi: 'Memenuhi Syarat',
-        keterangan: 'Terverifikasi Berhak Mengikuti Ujian Sekolah (DNT Final)',
+        keterangan: `Terverifikasi Berhak Mengikuti Ujian ${selectedExamCategory} (DNT Final)`,
       });
     });
   };
@@ -57,6 +58,19 @@ export const FormatS15_ExamCandidates: React.FC = () => {
       {/* Top Filter and Actions */}
       <div className="no-print bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-700">Kategori Ujian:</span>
+            <select
+              value={selectedExamCategory}
+              onChange={e => setSelectedExamCategory(e.target.value as 'ASAS' | 'ASAT' | 'ASAJ')}
+              className="text-xs px-3 py-1.5 border border-emerald-300 rounded-md font-bold text-emerald-900 bg-emerald-50/50"
+            >
+              <option value="ASAS">ASAS (Asesmen Sumatif Akhir Semester - Ganjil)</option>
+              <option value="ASAT">ASAT (Asesmen Sumatif Akhir Tahun - Genap)</option>
+              <option value="ASAJ">ASAJ (Asesmen Sumatif Akhir Jenjang - Kelas VI)</option>
+            </select>
+          </div>
+
           {isGuruKelas ? (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-900 rounded-lg text-xs font-semibold border border-blue-200">
               <Lock className="w-3.5 h-3.5 text-blue-700" />
@@ -120,8 +134,8 @@ export const FormatS15_ExamCandidates: React.FC = () => {
       <div className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-xs print:border-none print:shadow-none print:p-0 print:m-0 text-slate-900 text-xs">
         <OfficialKop
           formatCode="S-15"
-          formatTitle="DAFTAR CALON PESERTA UJIAN (ASAS / ASAT / ASAJ)"
-          subTitle={`DAFTAR NOMINASI TETAP (DNT) ASAS / ASAT / ASAJ TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
+          formatTitle={`DAFTAR CALON PESERTA UJIAN (${selectedExamCategory})`}
+          subTitle={`DAFTAR NOMINASI TETAP (DNT) ${selectedExamCategory} TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
           kelas={`${effectiveClass} - ${effectiveRombel}`}
         />
 
@@ -143,25 +157,29 @@ export const FormatS15_ExamCandidates: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredCandidates.map((cand, idx) => (
-                <tr key={cand.id} className="hover:bg-slate-50 text-center">
-                  <td className="border border-slate-800 p-2 font-mono">{idx + 1}</td>
-                  <td className="border border-slate-800 p-2 font-mono font-bold text-emerald-900">
-                    {cand.nomorPesertaUjian}
-                  </td>
-                  <td className="border border-slate-800 p-2 font-mono">{cand.nis}</td>
-                  <td className="border border-slate-800 p-2 font-mono">{cand.nisn}</td>
-                  <td className="border border-slate-800 p-2 text-left font-bold">{cand.namaLengkap}</td>
-                  <td className="border border-slate-800 p-2 font-semibold">{cand.jenisKelamin}</td>
-                  <td className="border border-slate-800 p-2 text-left">{cand.tempatTanggalLahir}</td>
-                  <td className="border border-slate-800 p-2 text-emerald-800 font-semibold">{cand.syaratNilai}</td>
-                  <td className="border border-slate-800 p-2 text-emerald-800 font-semibold">{cand.syaratPresensi}</td>
-                  <td className="border border-slate-800 p-2 font-bold text-emerald-800 bg-emerald-50/50">
-                    {cand.statusVerifikasi}
-                  </td>
-                  <td className="border border-slate-800 p-2 text-left text-[10px]">{cand.keterangan}</td>
-                </tr>
-              ))}
+              {filteredCandidates.map((cand, idx) => {
+                const st = students.find(s => s.id === cand.studentId);
+                const ttl = st ? formatPlaceAndBirthDate(st.tempatLahir, st.tanggalLahir) : cand.tempatTanggalLahir;
+                return (
+                  <tr key={cand.id} className="hover:bg-slate-50 text-center">
+                    <td className="border border-slate-800 p-2 font-mono">{idx + 1}</td>
+                    <td className="border border-slate-800 p-2 font-mono font-bold text-emerald-900">
+                      {cand.nomorPesertaUjian}
+                    </td>
+                    <td className="border border-slate-800 p-2 font-mono">{cand.nis}</td>
+                    <td className="border border-slate-800 p-2 font-mono">{cand.nisn}</td>
+                    <td className="border border-slate-800 p-2 text-left font-bold">{cand.namaLengkap}</td>
+                    <td className="border border-slate-800 p-2 font-semibold">{cand.jenisKelamin}</td>
+                    <td className="border border-slate-800 p-2 text-left">{ttl}</td>
+                    <td className="border border-slate-800 p-2 text-emerald-800 font-semibold">{cand.syaratNilai}</td>
+                    <td className="border border-slate-800 p-2 text-emerald-800 font-semibold">{cand.syaratPresensi}</td>
+                    <td className="border border-slate-800 p-2 font-bold text-emerald-800 bg-emerald-50/50">
+                      {cand.statusVerifikasi}
+                    </td>
+                    <td className="border border-slate-800 p-2 text-left text-[10px]">{cand.keterangan}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

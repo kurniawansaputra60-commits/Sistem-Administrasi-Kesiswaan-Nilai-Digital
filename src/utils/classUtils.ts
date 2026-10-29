@@ -166,3 +166,15 @@ export function formatIndonesianDate(dateInput?: string | Date | null): string {
 
   return String(dateInput);
 }
+
+/**
+ * Format Tempat dan Tanggal Lahir (Tempat, Tanggal Bulan Tahun dalam bahasa Indonesia)
+ * Contoh: tempat: "Jakarta", tanggal: "2018-05-14" -> "Jakarta, 14 Mei 2018"
+ */
+export function formatPlaceAndBirthDate(place?: string | null, dateInput?: string | Date | null): string {
+  const p = place ? place.trim() : '';
+  const d = formatIndonesianDate(dateInput);
+  if (p && d) return `${p}, ${d}`;
+  if (p) return p;
+  return d || '-';
+}

@@ -430,9 +430,11 @@ export const FormatGrades_Management: React.FC = () => {
                     <tr>
                       <th className="p-2 text-left">Mata Pelajaran</th>
                       <th className="p-2 w-20">KKM (Ketik)</th>
-                      <th className="p-2 w-20">Tugas (30%)</th>
-                      <th className="p-2 w-20">UTS (30%)</th>
-                      <th className="p-2 w-20">UAS (40%)</th>
+                      <th className="p-2 w-20">Formatif / Tugas (30%)</th>
+                      <th className="p-2 w-20">STS (30%)</th>
+                      <th className="p-2 w-24">
+                        {effectiveClass === 'VI' ? 'ASAJ (40%)' : selectedSemester === '2' ? 'ASAT (40%)' : 'ASAS (40%)'}
+                      </th>
                       <th className="p-2 w-20">Nilai Akhir</th>
                       <th className="p-2 w-16">Predikat</th>
                       <th className="p-2 w-20">Status</th>
@@ -467,6 +469,7 @@ export const FormatGrades_Management: React.FC = () => {
                               value={g.tugas}
                               onChange={e => handleGradeChange(idx, 'tugas', Number(e.target.value))}
                               className="w-16 px-1.5 py-1 border border-slate-300 rounded text-center font-mono"
+                              title="Nilai Formatif / Tugas Harian"
                             />
                           </td>
                           <td className="p-1.5">
@@ -477,6 +480,7 @@ export const FormatGrades_Management: React.FC = () => {
                               value={g.uts}
                               onChange={e => handleGradeChange(idx, 'uts', Number(e.target.value))}
                               className="w-16 px-1.5 py-1 border border-slate-300 rounded text-center font-mono"
+                              title="Nilai Sumatif Tengah Semester (STS)"
                             />
                           </td>
                           <td className="p-1.5">
@@ -487,6 +491,7 @@ export const FormatGrades_Management: React.FC = () => {
                               value={g.uas}
                               onChange={e => handleGradeChange(idx, 'uas', Number(e.target.value))}
                               className="w-16 px-1.5 py-1 border border-slate-300 rounded text-center font-mono"
+                              title={`Nilai ${effectiveClass === 'VI' ? 'ASAJ' : selectedSemester === '2' ? 'ASAT' : 'ASAS'}`}
                             />
                           </td>
                           <td className="p-2 font-bold font-mono text-emerald-900 bg-emerald-50/40">

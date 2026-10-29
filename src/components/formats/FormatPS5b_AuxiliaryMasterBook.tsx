@@ -3,7 +3,7 @@ import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
 import { Search, Printer, Users } from 'lucide-react';
-import { isKelasMatch, toRomanClass } from '../../utils/classUtils';
+import { isKelasMatch, toRomanClass, formatPlaceAndBirthDate } from '../../utils/classUtils';
 
 export const FormatPS5b_AuxiliaryMasterBook: React.FC = () => {
   const { students, schoolProfile } = useSchool();
@@ -163,7 +163,7 @@ export const FormatPS5b_AuxiliaryMasterBook: React.FC = () => {
                     <td className="border border-slate-800 p-2 font-bold text-slate-900">{s.namaLengkap}</td>
                     <td className="border border-slate-800 p-2 text-center font-bold">{s.jenisKelamin}</td>
                     <td className="border border-slate-800 p-2 text-[11px]">
-                      {s.tempatLahir}, {s.tanggalLahir}
+                      {formatPlaceAndBirthDate(s.tempatLahir, s.tanggalLahir)}
                     </td>
                     <td className="border border-slate-800 p-2 text-center">{s.agama}</td>
                     <td className="border border-slate-800 p-2 text-[11px]">

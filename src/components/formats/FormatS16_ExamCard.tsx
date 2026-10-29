@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { OfficialKop } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
-import { isKelasMatch, toRomanClass } from '../../utils/classUtils';
+import { isKelasMatch, toRomanClass, formatPlaceAndBirthDate } from '../../utils/classUtils';
 import { Printer, CreditCard, Lock } from 'lucide-react';
 
 export const FormatS16_ExamCard: React.FC = () => {
   const { students, schoolProfile, examCandidates } = useSchool();
   const { userProfile } = useAuth();
   const isGuruKelas = userProfile?.role === 'guru_kelas';
+
+  const [selectedExamCategory, setSelectedExamCategory] = useState<'ASAS' | 'ASAT' | 'ASAJ'>('ASAS');
 
   const effectiveClass = isGuruKelas ? toRomanClass(userProfile?.kelasTugas) : null;
   const effectiveRombel = isGuruKelas ? (userProfile?.rombelTugas || 'A') : null;
@@ -33,29 +35,51 @@ export const FormatS16_ExamCard: React.FC = () => {
 
   const currentSemester = schoolProfile.semesterAktif || '1';
 
-  const getExamLabel = (cls?: string) => {
+  const getExamTitle = (cls?: string) => {
     const isClass6 = cls === 'VI' || cls === '6';
-    if (isClass6) return 'ASAJ (ASESMEN SUMATIF AKHIR JENJANG)';
-    if (currentSemester === '2') return 'ASAT (ASESMEN SUMATIF AKHIR TAHUN)';
+    if (selectedExamCategory === 'ASAJ' || isClass6) return 'ASAJ (ASESMEN SUMATIF AKHIR JENJANG)';
+    if (selectedExamCategory === 'ASAT') return 'ASAT (ASESMEN SUMATIF AKHIR TAHUN)';
     return 'ASAS (ASESMEN SUMATIF AKHIR SEMESTER)';
   };
 
-  const examSchedules = [
-    { hariTanggal: 'Senin, 18 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Pendidikan Agama & Budi Pekerti' },
-    { hariTanggal: 'Senin, 18 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Pendidikan Pancasila (PPKn)' },
-    { hariTanggal: 'Selasa, 19 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Bahasa Indonesia' },
-    { hariTanggal: 'Selasa, 19 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Matematika' },
-    { hariTanggal: 'Rabu, 20 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Ilmu Pengetahuan Alam & Sosial (IPAS)' },
-    { hariTanggal: 'Rabu, 20 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Seni Budaya & Prakarya (SBdP)' },
-    { hariTanggal: 'Kamis, 21 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Pendidikan Jasmani, Olahraga & Kesehatan (PJOK)' },
-    { hariTanggal: 'Kamis, 21 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Bahasa Inggris' },
-    { hariTanggal: 'Jumat, 22 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Bahasa Sunda (Muatan Lokal)' },
-    { hariTanggal: 'Jumat, 22 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Kokurikuler / Projek P5' },
-  ];
+  const getExamSchedules = (cls?: string) => {
+    const isClass1Or2 = cls === '1' || cls === '2' || cls === 'I' || cls === 'II';
+    if (isClass1Or2) {
+      // Total 9 Mata Pelajaran untuk Kelas 1 & 2 (Tanpa IPAS, SBdP di hari Jumat)
+      return [
+        { hariTanggal: 'Senin, 18 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Pendidikan Agama & Budi Pekerti' },
+        { hariTanggal: 'Senin, 18 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Pendidikan Pancasila (PPKn)' },
+        { hariTanggal: 'Selasa, 19 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Bahasa Indonesia' },
+        { hariTanggal: 'Selasa, 19 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Matematika' },
+        { hariTanggal: 'Rabu, 20 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Pendidikan Jasmani, Olahraga & Kesehatan (PJOK)' },
+        { hariTanggal: 'Kamis, 21 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Bahasa Inggris' },
+        { hariTanggal: 'Kamis, 21 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Bahasa Sunda (Muatan Lokal)' },
+        { hariTanggal: 'Jumat, 22 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Seni Budaya & Prakarya (SBdP)' },
+        { hariTanggal: 'Jumat, 22 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Kokurikuler / Projek P5' },
+      ];
+    }
+
+    // Total 10 Mata Pelajaran untuk Kelas 3, 4, 5, 6 (Ada IPAS di hari Rabu)
+    return [
+      { hariTanggal: 'Senin, 18 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Pendidikan Agama & Budi Pekerti' },
+      { hariTanggal: 'Senin, 18 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Pendidikan Pancasila (PPKn)' },
+      { hariTanggal: 'Selasa, 19 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Bahasa Indonesia' },
+      { hariTanggal: 'Selasa, 19 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Matematika' },
+      { hariTanggal: 'Rabu, 20 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Ilmu Pengetahuan Alam & Sosial (IPAS)' },
+      { hariTanggal: 'Rabu, 20 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Seni Budaya & Prakarya (SBdP)' },
+      { hariTanggal: 'Kamis, 21 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Pendidikan Jasmani, Olahraga & Kesehatan (PJOK)' },
+      { hariTanggal: 'Kamis, 21 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Bahasa Inggris' },
+      { hariTanggal: 'Jumat, 22 Mei 2026', waktu: '07.30 - 09.00 WIB', mapel: 'Bahasa Sunda (Muatan Lokal)' },
+      { hariTanggal: 'Jumat, 22 Mei 2026', waktu: '09.30 - 11.00 WIB', mapel: 'Kokurikuler / Projek P5' },
+    ];
+  };
 
   const renderSingleCard = (cand: typeof examCandidates[0], st: typeof student, index: number) => {
     const studentClass = st ? st.kelasSekarang : 'VI';
-    const examTitle = getExamLabel(studentClass);
+    const examTitle = getExamTitle(studentClass);
+    const examSchedules = getExamSchedules(studentClass);
+
+    let lastDate = '';
 
     return (
       <div
@@ -108,7 +132,7 @@ export const FormatS16_ExamCard: React.FC = () => {
             </div>
             <div className="grid grid-cols-3">
               <span className="text-slate-600">Tempat, Tgl Lahir</span>
-              <span className="col-span-2">: {st ? `${st.tempatLahir}, ${st.tanggalLahir}` : '-'}</span>
+              <span className="col-span-2">: {st ? formatPlaceAndBirthDate(st.tempatLahir, st.tanggalLahir) : '-'}</span>
             </div>
             <div className="grid grid-cols-3">
               <span className="text-slate-600">Kelas / Sesi</span>
@@ -127,7 +151,9 @@ export const FormatS16_ExamCard: React.FC = () => {
 
         {/* Schedule Table */}
         <div className="mb-4">
-          <div className="text-[11px] font-bold text-slate-800 mb-1">JADWAL &amp; PARAF PENGAWAS ({examSchedules.length} MATA PELAJARAN):</div>
+          <div className="text-[11px] font-bold text-slate-800 mb-1">
+            JADWAL &amp; PARAF PENGAWAS ({examSchedules.length} MATA PELAJARAN):
+          </div>
           <table className="w-full text-[10px] border-collapse border border-slate-800">
             <thead>
               <tr className="bg-slate-100 text-center">
@@ -139,15 +165,31 @@ export const FormatS16_ExamCard: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {examSchedules.map((sch, i) => (
-                <tr key={i}>
-                  <td className="border border-slate-800 p-1 text-center font-mono">{i + 1}</td>
-                  <td className="border border-slate-800 p-1">{sch.hariTanggal}</td>
-                  <td className="border border-slate-800 p-1 font-semibold">{sch.mapel}</td>
-                  <td className="border border-slate-800 p-1 text-center font-mono">{sch.waktu}</td>
-                  <td className="border border-slate-800 p-1 text-center text-slate-300">...</td>
-                </tr>
-              ))}
+              {examSchedules.map((sch, i) => {
+                const isFirstOfDate = sch.hariTanggal !== lastDate;
+                let dateSpan = 1;
+                if (isFirstOfDate) {
+                  lastDate = sch.hariTanggal;
+                  dateSpan = examSchedules.filter(s => s.hariTanggal === sch.hariTanggal).length;
+                }
+
+                return (
+                  <tr key={i}>
+                    <td className="border border-slate-800 p-1 text-center font-mono">{i + 1}</td>
+                    {isFirstOfDate && (
+                      <td
+                        rowSpan={dateSpan}
+                        className="border border-slate-800 p-1 font-semibold text-center align-middle bg-slate-50/50"
+                      >
+                        {sch.hariTanggal}
+                      </td>
+                    )}
+                    <td className="border border-slate-800 p-1 font-semibold">{sch.mapel}</td>
+                    <td className="border border-slate-800 p-1 text-center font-mono">{sch.waktu}</td>
+                    <td className="border border-slate-800 p-1 text-center text-slate-300">...</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -184,6 +226,19 @@ export const FormatS16_ExamCard: React.FC = () => {
       {/* Top Filter and Actions */}
       <div className="no-print bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-700">Kategori Ujian:</span>
+            <select
+              value={selectedExamCategory}
+              onChange={e => setSelectedExamCategory(e.target.value as 'ASAS' | 'ASAT' | 'ASAJ')}
+              className="text-xs px-3 py-1.5 border border-emerald-300 rounded-md font-bold text-emerald-900 bg-emerald-50/50"
+            >
+              <option value="ASAS">ASAS (Asesmen Sumatif Akhir Semester - Ganjil)</option>
+              <option value="ASAT">ASAT (Asesmen Sumatif Akhir Tahun - Genap)</option>
+              <option value="ASAJ">ASAJ (Asesmen Sumatif Akhir Jenjang - Kelas VI)</option>
+            </select>
+          </div>
+
           {isGuruKelas && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs font-bold text-blue-900">
               <Lock className="w-3.5 h-3.5 text-blue-700 shrink-0" />
@@ -229,7 +284,7 @@ export const FormatS16_ExamCard: React.FC = () => {
       <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-xs print:bg-white print:p-0 print:border-none print:shadow-none">
         <div className="no-print text-center text-xs font-semibold text-slate-500 mb-4 flex items-center justify-center gap-1.5">
           <CreditCard className="w-4 h-4 text-emerald-700" />
-          Pratinjau Kartu Peserta Ujian ASAS / ASAT / ASAJ Siap Cetak
+          Pratinjau Kartu Peserta Ujian {selectedExamCategory} Siap Cetak
         </div>
 
         {printAllMode ? (
