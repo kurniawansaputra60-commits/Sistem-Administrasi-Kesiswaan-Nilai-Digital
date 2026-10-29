@@ -327,9 +327,9 @@ export const FormatS14_SemesterMutation: React.FC = () => {
           rightTitle="Kepala Sekolah"
           rightName={schoolProfile.namaKepalaSekolah}
           rightNip={schoolProfile.nipKepalaSekolah}
-          leftTitle="Petugas Mutasi Kesiswaan"
-          leftName={schoolProfile.namaPetugasAdmin}
-          leftNip={schoolProfile.nipPetugasAdmin}
+          leftTitle={isGuruKelas ? `Wali Kelas ${effectiveClass} ${effectiveRombel}` : "Petugas Mutasi Kesiswaan"}
+          leftName={isGuruKelas && userProfile?.displayName ? userProfile.displayName : schoolProfile.namaPetugasAdmin}
+          leftNip={isGuruKelas && userProfile?.nip ? userProfile.nip : schoolProfile.nipPetugasAdmin}
           city={schoolProfile.kabupatenKota}
           date="20 Juli 2026"
         />
@@ -339,8 +339,14 @@ export const FormatS14_SemesterMutation: React.FC = () => {
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-200">
-            <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">
-              Tambah Catatan Mutasi Siswa
+            <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center justify-between">
+              <span>Tambah Catatan Mutasi Siswa</span>
+              {isGuruKelas && (
+                <span className="text-[10px] font-bold text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-blue-700" />
+                  <span>Rombel Binaan: {effectiveClass} {effectiveRombel}</span>
+                </span>
+              )}
             </h3>
 
             <form onSubmit={handleAddMutation} className="space-y-3 text-xs">
@@ -404,26 +410,44 @@ export const FormatS14_SemesterMutation: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-slate-700 font-medium mb-1">Kelas:</label>
-                  <select
-                    value={newKelas}
-                    onChange={e => setNewKelas(e.target.value)}
-                    className="w-full border border-slate-300 rounded p-1.5"
-                  >
-                    {['I', 'II', 'III', 'IV', 'V', 'VI'].map(k => (
-                      <option key={k} value={k}>Kelas {k}</option>
-                    ))}
-                  </select>
+                  {isGuruKelas ? (
+                    <input
+                      type="text"
+                      value={`Kelas ${effectiveClass}`}
+                      disabled
+                      className="w-full border border-slate-200 bg-slate-100 rounded p-1.5 font-bold text-slate-700 cursor-not-allowed"
+                    />
+                  ) : (
+                    <select
+                      value={newKelas}
+                      onChange={e => setNewKelas(e.target.value)}
+                      className="w-full border border-slate-300 rounded p-1.5"
+                    >
+                      {['I', 'II', 'III', 'IV', 'V', 'VI'].map(k => (
+                        <option key={k} value={k}>Kelas {k}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="block text-slate-700 font-medium mb-1">Rombel:</label>
-                  <select
-                    value={newRombel}
-                    onChange={e => setNewRombel(e.target.value)}
-                    className="w-full border border-slate-300 rounded p-1.5 font-bold"
-                  >
-                    <option value="A">Rombel A</option>
-                    <option value="B">Rombel B</option>
-                  </select>
+                  {isGuruKelas ? (
+                    <input
+                      type="text"
+                      value={`Rombel ${effectiveRombel}`}
+                      disabled
+                      className="w-full border border-slate-200 bg-slate-100 rounded p-1.5 font-bold text-slate-700 cursor-not-allowed"
+                    />
+                  ) : (
+                    <select
+                      value={newRombel}
+                      onChange={e => setNewRombel(e.target.value)}
+                      className="w-full border border-slate-300 rounded p-1.5 font-bold"
+                    >
+                      <option value="A">Rombel A</option>
+                      <option value="B">Rombel B</option>
+                    </select>
+                  )}
                 </div>
               </div>
 

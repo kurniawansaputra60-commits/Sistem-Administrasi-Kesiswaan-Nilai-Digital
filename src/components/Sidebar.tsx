@@ -227,7 +227,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
           shortTitle: 'Ruang Guru',
           items: [
             { key: 'dashboard', label: 'Dashboard Wali Kelas', icon: LayoutDashboard },
-            { key: 'student-grades', label: 'Input & Leger Nilai Rapor', formatTag: 'LEGER', icon: Award },
           ],
         },
         // Buku Utama Data Siswa untuk Wali Kelas HANYA Buku Induk S-4
@@ -256,6 +255,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
           shortTitle: '6. Evaluasi',
           items: [
             { key: 'student-grades', label: 'Input & Leger Nilai Rapor', formatTag: 'LEGER', icon: Award },
+            { key: 's15-exam-candidates', label: 'Daftar Calon Peserta UAS', formatTag: 'S-15', icon: FileCheck },
             { key: 's16-exam-card', label: 'Tanda Peserta UAS (Kartu)', formatTag: 'S-16', icon: CreditCard },
             { key: 's17-exam-results', label: 'Daftar Nilai UAS Siswa', formatTag: 'S-17', icon: Trophy },
           ],

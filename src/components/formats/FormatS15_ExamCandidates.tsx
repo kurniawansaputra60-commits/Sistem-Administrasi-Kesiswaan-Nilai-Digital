@@ -1,19 +1,33 @@
 import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
-import { Printer, CheckCircle2, UserCheck, Plus } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { isKelasMatch, toRomanClass } from '../../utils/classUtils';
+import { Printer, CheckCircle2, UserCheck, Plus, Lock } from 'lucide-react';
 
 export const FormatS15_ExamCandidates: React.FC = () => {
   const { students, schoolProfile, examCandidates, addExamCandidate } = useSchool();
+  const { userProfile } = useAuth();
+  const isGuruKelas = userProfile?.role === 'guru_kelas';
+
   const [selectedClass, setSelectedClass] = useState<string>('VI');
   const [selectedRombel, setSelectedRombel] = useState<string>('A');
 
+  const effectiveClass = isGuruKelas ? toRomanClass(userProfile?.kelasTugas) : selectedClass;
+  const effectiveRombel = isGuruKelas ? (userProfile?.rombelTugas || 'A') : selectedRombel;
+
   // Siswa kelas terpilih yang belum didaftarkan sebagai calon peserta ujian
   const unassignedStudents = students.filter(
-    s => s.kelasSekarang === selectedClass && s.statusSiswa !== 'calon' && (!s.rombel || s.rombel === selectedRombel) && !examCandidates.some(c => c.studentId === s.id)
+    s => isKelasMatch(s.kelasSekarang, effectiveClass) && s.statusSiswa !== 'calon' && (!s.rombel || s.rombel === effectiveRombel) && !examCandidates.some(c => c.studentId === s.id)
   );
 
-  const filteredCandidates = examCandidates.filter(c => c.kelas === selectedClass);
+  const filteredCandidates = examCandidates.filter(c => {
+    const kMatch = isKelasMatch(c.kelas, effectiveClass);
+    if (!kMatch) return false;
+    if (!isGuruKelas) return true;
+    const st = students.find(s => s.id === c.studentId);
+    return !st || !st.rombel || st.rombel === effectiveRombel;
+  });
 
   const handleEnrollAll = () => {
     unassignedStudents.forEach((st, idx) => {
@@ -43,33 +57,42 @@ export const FormatS15_ExamCandidates: React.FC = () => {
       {/* Top Filter and Actions */}
       <div className="no-print bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700">Tingkat Kelas:</span>
-            <select
-              value={selectedClass}
-              onChange={e => setSelectedClass(e.target.value)}
-              className="text-xs px-3 py-1.5 border border-slate-300 rounded-md font-bold text-slate-900 bg-white"
-            >
-              <option value="VI">Kelas VI (Ujian Sekolah / Asesmen Akhir Jenjang)</option>
-              <option value="V">Kelas V (Ujian Akhir Semester / ASAS)</option>
-              <option value="IV">Kelas IV (Ujian Akhir Semester / ASAS)</option>
-              <option value="III">Kelas III (Ujian Akhir Semester / ASAS)</option>
-              <option value="II">Kelas II (Ujian Akhir Semester / ASAS)</option>
-              <option value="I">Kelas I (Ujian Akhir Semester / ASAS)</option>
-            </select>
-          </div>
+          {isGuruKelas ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-900 rounded-lg text-xs font-semibold border border-blue-200">
+              <Lock className="w-3.5 h-3.5 text-blue-700" />
+              <span>📌 Rombel Binaan: Kelas {effectiveClass} {effectiveRombel}</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-700">Tingkat Kelas:</span>
+                <select
+                  value={selectedClass}
+                  onChange={e => setSelectedClass(e.target.value)}
+                  className="text-xs px-3 py-1.5 border border-slate-300 rounded-md font-bold text-slate-900 bg-white"
+                >
+                  <option value="VI">Kelas VI (Ujian Sekolah / Asesmen Akhir Jenjang)</option>
+                  <option value="V">Kelas V (Ujian Akhir Semester / ASAS)</option>
+                  <option value="IV">Kelas IV (Ujian Akhir Semester / ASAS)</option>
+                  <option value="III">Kelas III (Ujian Akhir Semester / ASAS)</option>
+                  <option value="II">Kelas II (Ujian Akhir Semester / ASAS)</option>
+                  <option value="I">Kelas I (Ujian Akhir Semester / ASAS)</option>
+                </select>
+              </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700">Rombel:</span>
-            <select
-              value={selectedRombel}
-              onChange={e => setSelectedRombel(e.target.value)}
-              className="text-xs px-3 py-1.5 border border-blue-300 rounded-md font-bold text-blue-900 bg-blue-50/50"
-            >
-              <option value="A">Rombel A</option>
-              <option value="B">Rombel B</option>
-            </select>
-          </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-700">Rombel:</span>
+                <select
+                  value={selectedRombel}
+                  onChange={e => setSelectedRombel(e.target.value)}
+                  className="text-xs px-3 py-1.5 border border-blue-300 rounded-md font-bold text-blue-900 bg-blue-50/50"
+                >
+                  <option value="A">Rombel A</option>
+                  <option value="B">Rombel B</option>
+                </select>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -79,7 +102,7 @@ export const FormatS15_ExamCandidates: React.FC = () => {
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md transition-colors cursor-pointer"
             >
               <UserCheck className="w-3.5 h-3.5 text-blue-700" />
-              <span>Daftarkan Semua Siswa Kelas {selectedClass} ({unassignedStudents.length})</span>
+              <span>Daftarkan Semua Siswa Kelas {effectiveClass} ({unassignedStudents.length})</span>
             </button>
           )}
 
@@ -99,7 +122,7 @@ export const FormatS15_ExamCandidates: React.FC = () => {
           formatCode="S-15"
           formatTitle="DAFTAR CALON PESERTA UJIAN AKHIR SEMESTER / UJIAN SEKOLAH"
           subTitle={`DAFTAR NOMINASI TETAP (DNT) TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
-          kelas={`${selectedClass} - ${selectedRombel}`}
+          kelas={`${effectiveClass} - ${effectiveRombel}`}
         />
 
         <div className="overflow-x-auto">
@@ -151,7 +174,7 @@ export const FormatS15_ExamCandidates: React.FC = () => {
           <span>Jumlah Total Peserta : {filteredCandidates.length} Orang</span>
         </div>
 
-        <OfficialSignature kelas={selectedClass} rombel={selectedRombel} waliKelasLabel={`Wali Kelas ${selectedClass}`} />
+        <OfficialSignature kelas={effectiveClass} rombel={effectiveRombel} waliKelasLabel={`Wali Kelas ${effectiveClass}`} />
       </div>
     </div>
   );
