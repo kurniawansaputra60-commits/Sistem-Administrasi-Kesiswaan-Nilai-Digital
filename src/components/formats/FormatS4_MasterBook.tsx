@@ -400,7 +400,12 @@ export const FormatS4_MasterBook: React.FC<FormatS4Props> = ({ onEditStudent, on
             </table>
           </div>
 
-          <OfficialSignature waliKelasLabel="Pengelola Buku Pembantu Induk" />
+          <OfficialSignature
+            useAdminOfficer={true}
+            leftTitle="Petugas Administrasi / Pengelola Buku Pembantu Induk"
+            leftName="KURNIAWAN SAPUTRA"
+            leftNip="19890906 202521 1 004"
+          />
         </div>
       )}
 
@@ -453,7 +458,12 @@ export const FormatS4_MasterBook: React.FC<FormatS4Props> = ({ onEditStudent, on
             </table>
           </div>
 
-          <OfficialSignature waliKelasLabel="Penanggung Jawab Kunci Induk" />
+          <OfficialSignature
+            useAdminOfficer={true}
+            leftTitle="Petugas Administrasi / Pengelola Buku Kunci Induk"
+            leftName="KURNIAWAN SAPUTRA"
+            leftNip="19890906 202521 1 004"
+          />
         </div>
       )}
     </div>

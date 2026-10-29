@@ -183,7 +183,12 @@ export const FormatS2_NewStudentCandidates: React.FC<FormatS2Props> = ({ onOpenA
           </table>
         </div>
 
-        <OfficialSignature waliKelasLabel="Ketua Panitia PPDB" />
+        <OfficialSignature
+          useAdminOfficer={true}
+          leftTitle="Ketua Panitia PPDB / Petugas Penerimaan"
+          leftName="KURNIAWAN SAPUTRA"
+          leftNip="19890906 202521 1 004"
+        />
       </div>
     </div>
   );

@@ -471,13 +471,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
               </p>
             </div>
 
-            <button
-              onClick={() => onNavigate('school-settings')}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-amber-950 font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-colors flex items-center gap-2 shrink-0"
-            >
-              <Settings className="w-4 h-4" />
-              <span>Kop Surat &amp; Tanda Tangan Resmi</span>
-            </button>
+            <div className="px-3.5 py-2 bg-amber-500/20 border border-amber-400/30 text-amber-100 text-xs rounded-xl flex items-center gap-2 shrink-0 font-semibold shadow-xs">
+              <Award className="w-4 h-4 text-amber-300" />
+              <span>Hak Akses: Pengesahan &amp; SK Resmi</span>
+            </div>
           </div>
         </div>
 

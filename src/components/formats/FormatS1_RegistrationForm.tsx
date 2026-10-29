@@ -3,6 +3,7 @@ import { OfficialKop } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { Student } from '../../types';
 import { Printer, UserCheck } from 'lucide-react';
+import { generateDigitalSignatureSvg } from '../../utils/signatureUtils';
 
 export const FormatS1_RegistrationForm: React.FC = () => {
   const { students, schoolProfile } = useSchool();
@@ -248,14 +249,22 @@ export const FormatS1_RegistrationForm: React.FC = () => {
               <div>
                 <p>Mengetahui,</p>
                 <p className="font-semibold">Panitia PPDB / Petugas Pendaftaran</p>
-                <div className="h-20"></div>
-                <p className="font-bold underline uppercase">{schoolProfile.namaPetugasAdmin}</p>
-                <p className="font-mono">NIP. {schoolProfile.nipPetugasAdmin}</p>
+                <div className="h-16 flex items-center justify-center my-0.5">
+                  <img
+                    src={generateDigitalSignatureSvg(schoolProfile.namaPetugasAdmin || 'KURNIAWAN SAPUTRA', 'KS')}
+                    alt="TTD Petugas Pendaftaran"
+                    className="h-14 max-w-[140px] object-contain mx-auto"
+                  />
+                </div>
+                <p className="font-bold underline uppercase">{schoolProfile.namaPetugasAdmin || 'KURNIAWAN SAPUTRA'}</p>
+                <p className="font-mono">NIP. {schoolProfile.nipPetugasAdmin || '19890906 202521 1 004'}</p>
               </div>
               <div>
                 <p>{schoolProfile.kabupatenKota}, {currentStudent.tanggalDiterima || schoolProfile.tanggalDokumen}</p>
                 <p className="font-semibold">Orang Tua / Wali Murid</p>
-                <div className="h-20"></div>
+                <div className="h-16 flex items-center justify-center my-0.5">
+                  <div className="h-14"></div>
+                </div>
                 <p className="font-bold underline uppercase">{currentStudent.dataAyah.nama || '...........................................'}</p>
                 <p className="text-[11px] text-slate-500">Tanda Tangan &amp; Nama Terang</p>
               </div>

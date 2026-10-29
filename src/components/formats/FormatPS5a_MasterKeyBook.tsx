@@ -128,9 +128,9 @@ export const FormatPS5a_MasterKeyBook: React.FC = () => {
           rightTitle="Kepala Sekolah"
           rightName={schoolProfile.namaKepalaSekolah}
           rightNip={schoolProfile.nipKepalaSekolah}
-          leftTitle="Petugas Administrasi / Pengelola Kesiswaan"
-          leftName={schoolProfile.namaPetugasAdmin || 'KURNIAWAN SAPUTRA'}
-          leftNip={schoolProfile.nipPetugasAdmin || '19890906 202521 1 004'}
+          leftTitle="Petugas Administrasi / Pengelola Buku Kunci Induk"
+          leftName="KURNIAWAN SAPUTRA"
+          leftNip="19890906 202521 1 004"
           useAdminOfficer={true}
           city={schoolProfile.kabupatenKota}
           date={schoolProfile.tanggalDokumen}

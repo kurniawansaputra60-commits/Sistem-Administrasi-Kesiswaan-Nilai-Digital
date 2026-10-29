@@ -115,9 +115,10 @@ export const FormatS3_AcceptedClass1: React.FC = () => {
         </div>
 
         <OfficialSignature
-          kelas="1"
-          rombel={selectedRombel !== 'ALL' ? selectedRombel : undefined}
-          waliKelasLabel={selectedRombel !== 'ALL' ? `Wali Kelas 1-${selectedRombel}` : "Wali Kelas I"}
+          useAdminOfficer={true}
+          leftTitle="Panitia PPDB / Pengelola Siswa Baru"
+          leftName="KURNIAWAN SAPUTRA"
+          leftNip="19890906 202521 1 004"
         />
       </div>
     </div>

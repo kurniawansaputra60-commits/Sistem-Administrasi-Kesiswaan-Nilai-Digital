@@ -2,6 +2,7 @@ import React from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { useAuth } from '../context/AuthContext';
 import { isKelasMatch, formatKelasName, normalizeKelas, toRomanClass, formatIndonesianDate } from '../utils/classUtils';
+import { generateDigitalSignatureSvg } from '../utils/signatureUtils';
 
 export interface OfficialKopProps {
   formatCode?: string;
@@ -219,7 +220,7 @@ export const OfficialSignature: React.FC<OfficialSignatureProps> = ({
     staffTitle = leftTitle || waliKelasLabel || 'Petugas Administrasi / Pengelola Kesiswaan';
     staffName = leftName || waliKelasNama || schoolProfile.namaPetugasAdmin || 'KURNIAWAN SAPUTRA';
     staffNip = leftNip || waliKelasNip || schoolProfile.nipPetugasAdmin || '19890906 202521 1 004';
-    staffTtd = waliKelasTtdUrl;
+    staffTtd = waliKelasTtdUrl || generateDigitalSignatureSvg(staffName, 'KS');
   } else {
     staffTitle = leftTitle || waliKelasLabel || defaultStaffTitle;
     staffName = leftName || waliKelasNama || detectedWaliNama;

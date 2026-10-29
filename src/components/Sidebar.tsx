@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   UserPlus,
@@ -26,6 +26,10 @@ import {
   EyeOff,
   User,
   Shield,
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
+  Folder,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -78,14 +82,18 @@ interface SidebarProps {
   onSelectTab: (tab: NavItemKey) => void;
 }
 
-interface NavSection {
+export interface NavItem {
+  key: NavItemKey;
+  label: string;
+  formatTag?: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+export interface NavSection {
+  id: string;
   title: string;
-  items: {
-    key: NavItemKey;
-    label: string;
-    formatTag?: string;
-    icon: React.ComponentType<{ className?: string }>;
-  }[];
+  shortTitle?: string;
+  items: NavItem[];
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
@@ -94,10 +102,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
 
   const role = userProfile?.role || 'admin';
 
-  // Master katalog semua menu
+  // Master katalog semua modul menu
   const allSections: Record<string, NavSection> = {
     main: {
-      title: 'Menu Utama',
+      id: 'main',
+      title: 'Menu Utama & Basis Data',
+      shortTitle: 'Basis Data',
       items: [
         { key: 'dashboard', label: 'Ringkasan Dashboard', icon: LayoutDashboard },
         { key: 'excel-import', label: 'Import & Export Excel', icon: FileSpreadsheet },
@@ -106,24 +116,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
       ],
     },
     ppdb: {
+      id: 'ppdb',
       title: '1. Penerimaan Siswa Baru (PPDB)',
+      shortTitle: '1. PPDB',
       items: [
-        { key: 's1-registration', label: 'Formulir Pendaftaran Siswa Baru', formatTag: 'S-1', icon: UserPlus },
+        { key: 's1-registration', label: 'Formulir Pendaftaran Siswa', formatTag: 'S-1', icon: UserPlus },
         { key: 's2-candidates', label: 'Daftar Calon Siswa Baru', formatTag: 'S-2', icon: Users },
         { key: 's3-new-students', label: 'Daftar Siswa Baru (Diterima)', formatTag: 'S-3', icon: Users },
       ],
     },
     bukuUtama: {
+      id: 'bukuUtama',
       title: '2. Buku Utama Data Siswa',
+      shortTitle: '2. Buku Utama',
       items: [
-        { key: 's4-master-book', label: 'Buku Induk', formatTag: 'S-4', icon: BookOpen },
-        { key: 's5-klapper', label: 'Buku Klaper', formatTag: 'S-5', icon: BookMarked },
-        { key: 'ps5a-master-key', label: 'Buku Kunci Induk', formatTag: 'PS-5a', icon: KeyRound },
-        { key: 'ps5b-aux-master', label: 'Buku Pembantu Induk', formatTag: 'PS-5b', icon: Layers },
+        { key: 's4-master-book', label: 'Buku Induk Siswa', formatTag: 'S-4', icon: BookOpen },
+        { key: 's5-klapper', label: 'Buku Klaper (A-Z)', formatTag: 'S-5', icon: BookMarked },
+        { key: 'ps5a-master-key', label: 'Buku Kunci Induk Registrasi', formatTag: 'PS-5a', icon: KeyRound },
+        { key: 'ps5b-aux-master', label: 'Buku Pembantu Induk Siswa', formatTag: 'PS-5b', icon: Layers },
       ],
     },
     statistik: {
+      id: 'statistik',
       title: '3. Statistik & Klasifikasi Siswa',
+      shortTitle: '3. Statistik Siswa',
       items: [
         { key: 's6-origin-stats', label: 'Siswa Menurut Asal & JK', formatTag: 'S-6', icon: PieChart },
         { key: 's7-age-stats', label: 'Siswa Menurut Usia & JK', formatTag: 'S-7', icon: PieChart },
@@ -131,25 +147,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
       ],
     },
     presensi: {
-      title: '4. Rekapitulasi Presensi / Kehadiran',
+      id: 'presensi',
+      title: '4. Presensi / Kehadiran',
+      shortTitle: '4. Presensi',
       items: [
         { key: 's8-daily-board', label: 'Papan Absen Harian Siswa', formatTag: 'S-8', icon: CalendarCheck },
-        { key: 's9-daily-recap', label: 'Buku Rekap Absen Harian Siswa', formatTag: 'S-9', icon: CalendarCheck },
+        { key: 's9-daily-recap', label: 'Buku Rekap Absen Harian', formatTag: 'S-9', icon: CalendarCheck },
         { key: 's10-monthly-attendance', label: 'Buku Absen Bulanan Siswa', formatTag: 'S-10', icon: CalendarCheck },
-        { key: 's11-monthly-recap', label: 'Buku Rekap Absen Bulanan Siswa', formatTag: 'S-11', icon: CalendarCheck },
+        { key: 's11-monthly-recap', label: 'Buku Rekap Absen Bulanan', formatTag: 'S-11', icon: CalendarCheck },
       ],
     },
     mutasi: {
+      id: 'mutasi',
       title: '5. Mutasi & Pindah Sekolah',
+      shortTitle: '5. Mutasi',
       items: [
-        { key: 's12-transfer-request', label: 'Surat Permohonan Pindah Sekolah', formatTag: 'S-12', icon: ArrowLeftRight },
-        { key: 's13-transfer-out', label: 'Surat Keterangan Pindah Sekolah', formatTag: 'S-13', icon: ArrowLeftRight },
-        { key: 's14-mutation-semester', label: 'Buku Mutasi Siswa Semesteran', formatTag: 'S-14', icon: ArrowLeftRight },
+        { key: 's12-transfer-request', label: 'Surat Permohonan Pindah', formatTag: 'S-12', icon: ArrowLeftRight },
+        { key: 's13-transfer-out', label: 'Surat Keterangan Pindah', formatTag: 'S-13', icon: ArrowLeftRight },
+        { key: 's14-mutation-semester', label: 'Buku Mutasi Semesteran', formatTag: 'S-14', icon: ArrowLeftRight },
         { key: 'ps14a-mutation-class', label: 'Buku Mutasi Siswa Kelas', formatTag: 'PS-14a', icon: ArrowLeftRight },
       ],
     },
     ujian: {
-      title: '6. Data Nilai & Ujian / Evaluasi',
+      id: 'ujian',
+      title: '6. Nilai & Evaluasi Ujian',
+      shortTitle: '6. Evaluasi / Ujian',
       items: [
         { key: 'student-grades', label: 'Input & Leger Nilai Rapor', formatTag: 'LEGER', icon: Award },
         { key: 's15-exam-candidates', label: 'Daftar Calon Peserta UAS', formatTag: 'S-15', icon: FileCheck },
@@ -158,15 +180,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
       ],
     },
     kelulusan: {
+      id: 'kelulusan',
       title: '7. Kelanjutan Studi & Kelulusan',
+      shortTitle: '7. Kelulusan',
       items: [
-        { key: 's18-graduate-studies', label: 'Daftar Siswa Masuk SLTP/MTS', formatTag: 'S-18', icon: GraduationCap },
+        { key: 's18-graduate-studies', label: 'Daftar Masuk SLTP/MTS', formatTag: 'S-18', icon: GraduationCap },
         { key: 's19-grade-promotion', label: 'Daftar Kenaikan Kelas', formatTag: 'S-19', icon: Award },
-        { key: 's20-graduation', label: 'Rekap Kelas Kenaikan & Kelulusan', formatTag: 'S-20', icon: Award },
+        { key: 's20-graduation', label: 'Rekap Kenaikan & Kelulusan', formatTag: 'S-20', icon: Award },
       ],
     },
     kurikulum: {
+      id: 'kurikulum',
       title: '8. Prestasi & Kurikulum',
+      shortTitle: '8. Prestasi / Kur.',
       items: [
         { key: 'ps21-bibit-unggul', label: 'Daftar Prestasi (Bibit Unggul)', formatTag: 'PS-21', icon: Sparkles },
         { key: 'ps22-siswa-berprestasi', label: 'Daftar Siswa Berprestasi', formatTag: 'PS-22', icon: Trophy },
@@ -185,61 +211,82 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
     if (role === 'guru_kelas') {
       return [
         {
-          title: 'Ruang Guru / Wali Kelas',
+          id: 'guru_main',
+          title: 'Ruang Guru & Kelas',
+          shortTitle: 'Ruang Guru',
           items: [
             { key: 'dashboard', label: 'Dashboard Wali Kelas', icon: LayoutDashboard },
             { key: 'student-grades', label: 'Input & Leger Nilai Rapor', formatTag: 'LEGER', icon: Award },
           ],
         },
+        // Sesuai permintaan: Buku Utama Data Siswa & Buku Induk S-4 muncul di semua Wali Kelas!
+        allSections.bukuUtama,
+        // Sesuai permintaan: Menu Statistik & Klasifikasi Siswa muncul di semua Wali Kelas!
+        allSections.statistik,
         allSections.presensi,
         {
-          title: '6. Evaluasi & Nilai Kelas',
+          id: 'guru_mutasi',
+          title: '5. Mutasi Siswa Kelas',
+          shortTitle: '5. Mutasi Kelas',
           items: [
-            { key: 'student-grades', label: 'Input & Leger Nilai Rapor', formatTag: 'LEGER', icon: Award },
-            { key: 's17-exam-results', label: 'Daftar Peserta UAS & Nilai', formatTag: 'S-17', icon: Trophy },
+            { key: 'ps14a-mutation-class', label: 'Buku Mutasi Siswa Kelas', formatTag: 'PS-14a', icon: ArrowLeftRight },
           ],
         },
         {
-          title: '7. Kenaikan Kelas',
+          id: 'guru_ujian',
+          title: '6. Evaluasi & Ujian Siswa',
+          shortTitle: '6. Evaluasi',
+          items: [
+            { key: 'student-grades', label: 'Input & Leger Nilai Rapor', formatTag: 'LEGER', icon: Award },
+            { key: 's17-exam-results', label: 'Daftar Nilai UAS Siswa', formatTag: 'S-17', icon: Trophy },
+          ],
+        },
+        {
+          id: 'guru_kelulusan',
+          title: '7. Kenaikan Kelas Siswa',
+          shortTitle: '7. Kenaikan',
           items: [
             { key: 's19-grade-promotion', label: 'Daftar Kenaikan Kelas', formatTag: 'S-19', icon: Award },
           ],
         },
         allSections.kurikulum,
-        {
-          title: '5. Mutasi Kelas',
-          items: [
-            { key: 'ps14a-mutation-class', label: 'Buku Mutasi Siswa Kelas', formatTag: 'PS-14a', icon: ArrowLeftRight },
-          ],
-        },
       ];
     }
 
     if (role === 'kepala_sekolah') {
+      // Sesuai permintaan: sembunyikan 'school-settings' (Pengaturan Kop & Profil) dari Kepala Sekolah!
       return [
         {
-          title: 'Menu Eksekutif',
+          id: 'kepsek_main',
+          title: 'Menu Eksekutif Kepala Sekolah',
+          shortTitle: 'Eksekutif',
           items: [
             { key: 'dashboard', label: 'Dashboard Kepala Sekolah', icon: LayoutDashboard },
-            { key: 'school-settings', label: 'Pengaturan Kop & Wali Kelas', icon: Settings },
           ],
         },
+        allSections.bukuUtama,
         allSections.statistik,
         {
+          id: 'kepsek_mutasi',
           title: '5. Laporan Mutasi Kesiswaan',
+          shortTitle: '5. Mutasi',
           items: [
             { key: 's14-mutation-semester', label: 'Buku Mutasi Semesteran', formatTag: 'S-14', icon: ArrowLeftRight },
             { key: 'ps14a-mutation-class', label: 'Buku Mutasi Siswa Kelas', formatTag: 'PS-14a', icon: ArrowLeftRight },
           ],
         },
         {
+          id: 'kepsek_ujian',
           title: '6. Evaluasi & Prestasi UAS',
+          shortTitle: '6. Evaluasi UAS',
           items: [
             { key: 's17-exam-results', label: 'Daftar Peserta UAS & Nilai', formatTag: 'S-17', icon: Trophy },
           ],
         },
         {
+          id: 'kepsek_kelulusan',
           title: '7. Kelulusan & Kenaikan',
+          shortTitle: '7. Kelulusan',
           items: [
             { key: 's19-grade-promotion', label: 'Daftar Kenaikan Kelas', formatTag: 'S-19', icon: Award },
             { key: 's20-graduation', label: 'Rekap Kenaikan & Kelulusan', formatTag: 'S-20', icon: Award },
@@ -254,13 +301,53 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
 
   const sections = getVisibleSections();
 
+  // State sub-menu accordion: ID sections yang sedang terbuka
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    sections.forEach(sec => {
+      // Buka seksi yang memiliki activeTab atau default buka 2 seksi pertama
+      const hasActive = sec.items.some(item => item.key === activeTab);
+      initial[sec.id] = hasActive || sec.id === 'main' || sec.id === 'guru_main' || sec.id === 'kepsek_main' || sec.id === 'bukuUtama';
+    });
+    return initial;
+  });
+
+  // Otomatis buka sub-menu tempat tab aktif berada saat berganti tab
+  useEffect(() => {
+    sections.forEach(sec => {
+      if (sec.items.some(i => i.key === activeTab)) {
+        setOpenSections(prev => ({
+          ...prev,
+          [sec.id]: true,
+        }));
+      }
+    });
+  }, [activeTab]);
+
+  const toggleSection = (sectionId: string) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }));
+  };
+
+  const toggleAll = (expand: boolean) => {
+    const updated: Record<string, boolean> = {};
+    sections.forEach(sec => {
+      updated[sec.id] = expand;
+    });
+    setOpenSections(updated);
+  };
+
+  const areAllExpanded = sections.every(s => openSections[s.id]);
+
   const getRoleBadge = () => {
     switch (role) {
       case 'guru_kelas':
         return (
-          <div className="bg-blue-950/80 border border-blue-700/60 text-blue-200 px-2 py-1 rounded text-[10px] font-bold flex items-center justify-between">
-            <span className="flex items-center gap-1 truncate">
-              <User className="w-3 h-3 text-blue-400 shrink-0" />
+          <div className="bg-blue-950/80 border border-blue-700/60 text-blue-200 px-2 py-1 rounded text-[10px] font-bold flex items-center justify-between shadow-2xs">
+            <span className="flex items-center gap-1.5 truncate">
+              <User className="w-3.5 h-3.5 text-blue-400 shrink-0" />
               <span className="truncate">Wali Kelas {userProfile?.kelasTugas || '1'}{userProfile?.rombelTugas || 'A'}</span>
             </span>
             <span className="text-[9px] bg-blue-800 text-white px-1.5 py-0.2 rounded font-mono shrink-0">
@@ -270,9 +357,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
         );
       case 'kepala_sekolah':
         return (
-          <div className="bg-amber-950/80 border border-amber-700/60 text-amber-200 px-2 py-1 rounded text-[10px] font-bold flex items-center justify-between">
-            <span className="flex items-center gap-1">
-              <Award className="w-3 h-3 text-amber-400" />
+          <div className="bg-amber-950/80 border border-amber-700/60 text-amber-200 px-2 py-1 rounded text-[10px] font-bold flex items-center justify-between shadow-2xs">
+            <span className="flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-amber-400" />
               <span>Kepala Sekolah</span>
             </span>
             <span className="text-[9px] bg-amber-800 text-white px-1.5 py-0.2 rounded font-mono">
@@ -282,9 +369,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
         );
       case 'admin':
         return (
-          <div className="bg-purple-950/80 border border-purple-700/60 text-purple-200 px-2 py-1 rounded text-[10px] font-bold flex items-center justify-between">
-            <span className="flex items-center gap-1">
-              <Shield className="w-3 h-3 text-purple-400" />
+          <div className="bg-purple-950/80 border border-purple-700/60 text-purple-200 px-2 py-1 rounded text-[10px] font-bold flex items-center justify-between shadow-2xs">
+            <span className="flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-purple-400" />
               <span>Administrator</span>
             </span>
             <span className="text-[9px] bg-purple-800 text-white px-1.5 py-0.2 rounded font-mono">
@@ -298,7 +385,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
   };
 
   return (
-    <aside className="w-68 bg-slate-900 text-slate-300 flex flex-col h-full border-r border-slate-800 shrink-0 select-none print:hidden">
+    <aside className="w-72 bg-slate-900 text-slate-300 flex flex-col h-full border-r border-slate-800 shrink-0 select-none print:hidden">
       {/* Brand Header */}
       <div className="p-4 border-b border-slate-800 space-y-2.5">
         <div className="flex items-center gap-3">
@@ -323,73 +410,134 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
         {getRoleBadge()}
       </div>
 
-      {/* Nav List */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-5 text-xs">
-        {sections.map(section => (
-          <div key={section.title} className="space-y-1">
-            <h2 className="px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-              {section.title}
-            </h2>
-            <div className="space-y-0.5">
-              {section.items.map(item => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.key;
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => onSelectTab(item.key)}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
-                      isActive
-                        ? 'bg-emerald-600 text-white font-semibold shadow-xs'
-                        : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                      <span className="truncate text-[11px]">{item.label}</span>
-                    </div>
-                    {item.formatTag && (
-                      <span
-                        className={`text-[9px] font-mono px-1.5 py-0.2 rounded shrink-0 font-bold ml-1.5 ${
+      {/* Baris Kontrol Sub-menu (Collapse / Expand All) */}
+      <div className="px-3 py-2 border-b border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 bg-slate-950/30">
+        <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
+          Kategori Sub-Menu
+        </span>
+        <button
+          onClick={() => toggleAll(!areAllExpanded)}
+          className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
+        >
+          {areAllExpanded ? 'Tutup Semua' : 'Buka Semua'}
+        </button>
+      </div>
+
+      {/* Nav List Berupa Sub-Menu Accordion Rapih */}
+      <nav className="flex-1 overflow-y-auto p-2.5 space-y-2 text-xs">
+        {sections.map(section => {
+          const isOpen = !!openSections[section.id];
+          const hasActiveItem = section.items.some(item => item.key === activeTab);
+
+          return (
+            <div
+              key={section.id}
+              className={`rounded-xl border transition-all ${
+                hasActiveItem
+                  ? 'border-emerald-500/30 bg-slate-850/60 shadow-xs'
+                  : 'border-slate-800/80 bg-slate-900/60'
+              }`}
+            >
+              {/* Header Sub-Menu Accordion */}
+              <button
+                onClick={() => toggleSection(section.id)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left cursor-pointer transition-colors ${
+                  hasActiveItem
+                    ? 'text-emerald-300 font-bold bg-slate-800/50'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/40'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  {isOpen ? (
+                    <FolderOpen className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <Folder className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  )}
+                  <span className="text-[11px] font-bold tracking-wide truncate">
+                    {section.title}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 font-semibold">
+                    {section.items.length}
+                  </span>
+                  {isOpen ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                  )}
+                </div>
+              </button>
+
+              {/* Daftar Sub-item */}
+              {isOpen && (
+                <div className="pt-1 pb-1.5 px-2 space-y-0.5 border-t border-slate-800/60">
+                  {section.items.map(item => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.key;
+                    return (
+                      <button
+                        key={item.key}
+                        onClick={() => onSelectTab(item.key)}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer group ${
                           isActive
-                            ? 'bg-emerald-800 text-emerald-100'
-                            : 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
+                            ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                         }`}
                       >
-                        {item.formatTag}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Icon
+                            className={`w-3.5 h-3.5 shrink-0 ${
+                              isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
+                            }`}
+                          />
+                          <span className="truncate text-[11px]">{item.label}</span>
+                        </div>
+                        {item.formatTag && (
+                          <span
+                            className={`text-[9px] font-mono px-1.5 py-0.2 rounded shrink-0 font-bold ml-1.5 ${
+                              isActive
+                                ? 'bg-emerald-800 text-emerald-100'
+                                : 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
+                            }`}
+                          >
+                            {item.formatTag}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* Footer Profile & Settings */}
       <div className="p-3 border-t border-slate-800 bg-slate-950/40 text-[11px] space-y-2">
-        {/* Toggle Lihat Semua Menu hanya untuk Kepala Sekolah / Admin, Sembunyikan untuk Guru Kelas */}
-        {role === 'kepala_sekolah' && (
+        {/* Toggle Lihat Semua Format hanya untuk Kepala Sekolah / Guru Kelas jika ingin melihat arsip */}
+        {(role === 'kepala_sekolah' || role === 'guru_kelas') && (
           <button
             onClick={() => setShowAllMenus(!showAllMenus)}
-            className="w-full flex items-center justify-center gap-1.5 py-1 px-2 rounded text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer transition-colors shadow-2xs"
           >
             {showAllMenus ? (
               <>
                 <EyeOff className="w-3 h-3 text-slate-400" />
-                <span>Tampilkan Menu Peran Saya Saja</span>
+                <span>Tampilkan Menu Pokok Peran</span>
               </>
             ) : (
               <>
                 <Eye className="w-3 h-3 text-emerald-400" />
-                <span>Lihat Semua Format (24 Format)</span>
+                <span>Buka Seluruh Dokumen (Format S-1 s/d PS-24)</span>
               </>
             )}
           </button>
         )}
 
-        {(role === 'kepala_sekolah' || role === 'admin') && (
+        {/* Profil Sekolah & Kop Surat HANYA untuk Administrator (Sesuai instruksi: sembunyikan dari Kepala Sekolah & Wali Kelas) */}
+        {role === 'admin' && (
           <button
             onClick={() => onSelectTab('school-settings')}
             className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${

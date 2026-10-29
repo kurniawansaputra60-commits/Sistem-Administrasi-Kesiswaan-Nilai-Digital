@@ -147,7 +147,9 @@ function MainApp() {
 
   const handleSelectTab = (tab: NavItemKey) => {
     if (tab === 'school-settings') {
-      setIsSettingsModalOpen(true);
+      if (userProfile?.role === 'admin') {
+        setIsSettingsModalOpen(true);
+      }
     } else {
       setActiveTab(tab);
     }
@@ -165,8 +167,6 @@ function MainApp() {
         <Header
           currentTitle={currentConfig.title}
           formatTag={currentConfig.formatTag}
-          onOpenSettings={() => setIsSettingsModalOpen(true)}
-          onOpenAddStudent={handleOpenAddStudent}
         />
 
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto max-w-[1600px] w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full print:overflow-visible">
