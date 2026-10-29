@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
-import { Printer, Calendar, CheckSquare, Save, Lock } from 'lucide-react';
+import { Printer, Calendar, CheckSquare, Lock } from 'lucide-react';
 import { DailyAttendanceRecord } from '../../types';
 import { isKelasMatch, toRomanClass } from '../../utils/classUtils';
+import { isDayOff } from '../../utils/holidayUtils';
 
 export const FormatS10_MonthlyAttendance: React.FC = () => {
   const { students, schoolProfile, attendances, saveAttendance } = useSchool();
@@ -32,7 +33,8 @@ export const FormatS10_MonthlyAttendance: React.FC = () => {
   const getStatus = (studentId: string, day: number): 'H' | 'S' | 'I' | 'A' | '-' => {
     const dateStr = `${selectedMonth}-${String(day).padStart(2, '0')}`;
     const dateObj = new Date(Number(yearStr), Number(monthStr) - 1, day);
-    if (dateObj.getDay() === 0) return '-'; // Minggu libur
+    const dayOffCheck = isDayOff(dateObj);
+    if (dayOffCheck.isLibur) return '-'; // Sabtu, Minggu, & Libur Nasional Libur
 
     const rec = attendances.find(a => a.tanggal === dateStr && a.kelas === selectedClass);
     if (!rec) return 'H'; // Default Hadir bila hari sekolah
@@ -44,7 +46,8 @@ export const FormatS10_MonthlyAttendance: React.FC = () => {
   const handleCellClick = (studentId: string, day: number) => {
     const dateStr = `${selectedMonth}-${String(day).padStart(2, '0')}`;
     const dateObj = new Date(Number(yearStr), Number(monthStr) - 1, day);
-    if (dateObj.getDay() === 0) return; // ignore Sundays
+    const dayOffCheck = isDayOff(dateObj);
+    if (dayOffCheck.isLibur) return; // ignore Saturday/Sunday/National Holidays
 
     const current = getStatus(studentId, day);
     const nextStatus: 'H' | 'S' | 'I' | 'A' =
@@ -203,13 +206,14 @@ export const FormatS10_MonthlyAttendance: React.FC = () => {
               <tr>
                 {days.map(d => {
                   const dateObj = new Date(Number(yearStr), Number(monthStr) - 1, d);
-                  const isSunday = dateObj.getDay() === 0;
+                  const dayOffCheck = isDayOff(dateObj);
                   return (
                     <th
                       key={d}
                       className={`border border-slate-800 p-0.5 w-5 font-mono ${
-                        isSunday ? 'bg-rose-100 text-rose-800' : ''
+                        dayOffCheck.isLibur ? 'bg-rose-100 text-rose-800' : ''
                       }`}
+                      title={dayOffCheck.isLibur ? `Libur: ${dayOffCheck.reason}` : `Tgl ${d}`}
                     >
                       {d}
                     </th>
@@ -230,7 +234,8 @@ export const FormatS10_MonthlyAttendance: React.FC = () => {
 
                 days.forEach(d => {
                   const dateObj = new Date(Number(yearStr), Number(monthStr) - 1, d);
-                  if (dateObj.getDay() !== 0) {
+                  const dayOffCheck = isDayOff(dateObj);
+                  if (!dayOffCheck.isLibur) {
                     effectiveDays++;
                     const st = getStatus(student.id, d);
                     if (st === 'S') sCount++;
@@ -255,11 +260,11 @@ export const FormatS10_MonthlyAttendance: React.FC = () => {
                     {/* Matrix of days */}
                     {days.map(d => {
                       const dateObj = new Date(Number(yearStr), Number(monthStr) - 1, d);
-                      const isSunday = dateObj.getDay() === 0;
+                      const dayOffCheck = isDayOff(dateObj);
                       const status = getStatus(student.id, d);
 
                       let cellColor = '';
-                      if (isSunday) {
+                      if (dayOffCheck.isLibur) {
                         cellColor = 'bg-rose-50 text-rose-300 select-none';
                       } else if (status === 'S') {
                         cellColor = 'bg-blue-100 text-blue-900 font-bold';
@@ -276,7 +281,7 @@ export const FormatS10_MonthlyAttendance: React.FC = () => {
                           key={d}
                           onClick={() => handleCellClick(student.id, d)}
                           className={`border border-slate-800 p-0.5 font-mono cursor-pointer transition-colors hover:ring-1 hover:ring-emerald-500 ${cellColor}`}
-                          title={`Tgl ${d}: ${status === '-' ? 'Libur' : status}`}
+                          title={`Tgl ${d}: ${dayOffCheck.isLibur ? dayOffCheck.reason : status}`}
                         >
                           {status === 'H' ? '•' : status}
                         </td>

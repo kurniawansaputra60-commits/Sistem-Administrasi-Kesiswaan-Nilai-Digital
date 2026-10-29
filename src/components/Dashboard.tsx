@@ -51,6 +51,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
     students,
     mutations,
     achievements,
+    attendances,
     downloadMySQLDump,
   } = useSchool();
 
@@ -260,17 +261,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
             <span className="text-[11px] text-slate-500 mt-1 block">Rombongan Belajar {teacherRombel}</span>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-600">Tingkat Kehadiran</span>
-              <CalendarCheck className="w-4 h-4 text-emerald-600" />
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-black text-emerald-700 font-mono tabular-nums">100%</span>
-              <span className="text-xs text-emerald-600 font-medium">Optimal</span>
-            </div>
-            <span className="text-[11px] text-slate-500 mt-1 block">Presensi Format S-8 &amp; S-9</span>
-          </div>
+          {/* Calculate dynamic attendance stats for teacher's students */}
+          {(() => {
+            const teacherStudentIds = new Set(teacherRombelStudents.map(s => s.id));
+            let sakitCount = 0;
+            let izinCount = 0;
+            let alfaCount = 0;
+            let hadirCount = 0;
+
+            attendances.forEach(att => {
+              att.entries?.forEach(entry => {
+                if (teacherStudentIds.has(entry.studentId)) {
+                  if (entry.status === 'S') sakitCount++;
+                  else if (entry.status === 'I') izinCount++;
+                  else if (entry.status === 'A') alfaCount++;
+                  else if (entry.status === 'H') hadirCount++;
+                }
+              });
+            });
+
+            const totalRecs = sakitCount + izinCount + alfaCount + hadirCount;
+            const attendancePct = totalRecs > 0 ? Math.round((hadirCount / totalRecs) * 100) : 100;
+
+            return (
+              <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-600">Tingkat Kehadiran</span>
+                  <CalendarCheck className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-emerald-700 font-mono tabular-nums">{attendancePct}%</span>
+                  <span className="text-xs text-emerald-600 font-medium">
+                    {sakitCount + izinCount + alfaCount > 0 ? `S:${sakitCount} I:${izinCount} A:${alfaCount}` : 'Optimal'}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-500 mt-1 block">Presensi Format S-8 &amp; S-9</span>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Ringkasan Demografi Rombel Binaan */}

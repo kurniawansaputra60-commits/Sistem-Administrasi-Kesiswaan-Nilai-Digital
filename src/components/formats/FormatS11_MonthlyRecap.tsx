@@ -12,7 +12,7 @@ export const FormatS11_MonthlyRecap: React.FC = () => {
 
   const [selectedClass, setSelectedClass] = useState<string>('ALL');
   const [selectedRombel, setSelectedRombel] = useState<string>('A');
-  const [selectedPeriod, setSelectedPeriod] = useState<'SEMESTER' | 'TAHUNAN'>('SEMESTER');
+  const [selectedPeriod, setSelectedPeriod] = useState<'SEMESTER_1' | 'SEMESTER_2' | 'TAHUNAN'>('SEMESTER_2');
 
   const effectiveClass = isGuruKelas ? toRomanClass(userProfile?.kelasTugas) : selectedClass;
   const effectiveRombel = isGuruKelas ? (userProfile?.rombelTugas || 'A') : selectedRombel;
@@ -23,13 +23,22 @@ export const FormatS11_MonthlyRecap: React.FC = () => {
       (effectiveClass === 'ALL' || !s.rombel || s.rombel === effectiveRombel)
   );
 
+  // Filter attendance records by selected period (Ganjil: Bulan 7-12, Genap: Bulan 1-6, Tahunan: Semua)
+  const filteredAttendances = attendances.filter(att => {
+    if (!att.tanggal) return true;
+    const m = parseInt(att.tanggal.split('-')[1], 10);
+    if (selectedPeriod === 'SEMESTER_1') return m >= 7 && m <= 12;
+    if (selectedPeriod === 'SEMESTER_2') return m >= 1 && m <= 6;
+    return true; // TAHUNAN
+  });
+
   // Hitung akumulasi presensi per siswa
   const studentRecaps = activeStudents.map(s => {
     let sCount = 0;
     let iCount = 0;
     let aCount = 0;
 
-    attendances.forEach(att => {
+    filteredAttendances.forEach(att => {
       const entry = att.entries.find(e => e.studentId === s.id);
       if (entry) {
         if (entry.status === 'S') sCount++;
@@ -39,7 +48,7 @@ export const FormatS11_MonthlyRecap: React.FC = () => {
     });
 
     const totalAbsent = sCount + iCount + aCount;
-    const totalHariEfektif = 110; // Rata-rata hari efektif semester
+    const totalHariEfektif = selectedPeriod === 'TAHUNAN' ? 220 : 110; // Rata-rata hari efektif
     const hadir = Math.max(0, totalHariEfektif - totalAbsent);
     const persentase = Math.round((hadir / totalHariEfektif) * 100);
 
@@ -57,6 +66,12 @@ export const FormatS11_MonthlyRecap: React.FC = () => {
   const totalI = studentRecaps.reduce((acc, r) => acc + r.iCount, 0);
   const totalA = studentRecaps.reduce((acc, r) => acc + r.aCount, 0);
   const totalAllAbsent = totalS + totalI + totalA;
+
+  const periodLabel = selectedPeriod === 'SEMESTER_1'
+    ? 'SEMESTER 1 (GANJIL)'
+    : selectedPeriod === 'SEMESTER_2'
+    ? 'SEMESTER 2 (GENAP)'
+    : 'SATU TAHUN AJARAN';
 
   return (
     <div className="space-y-6">
@@ -104,13 +119,14 @@ export const FormatS11_MonthlyRecap: React.FC = () => {
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700">Periode:</span>
+            <span className="text-xs font-semibold text-slate-700">Periode Rekap:</span>
             <select
               value={selectedPeriod}
               onChange={e => setSelectedPeriod(e.target.value as any)}
-              className="text-xs px-3 py-1.5 border border-slate-300 rounded-md bg-white font-medium"
+              className="text-xs px-3 py-1.5 border border-slate-300 rounded-md bg-white font-bold text-slate-800"
             >
-              <option value="SEMESTER">Semester {schoolProfile.semesterAktif === '1' ? '1 (Ganjil)' : '2 (Genap)'}</option>
+              <option value="SEMESTER_1">Semester 1 (Ganjil)</option>
+              <option value="SEMESTER_2">Semester 2 (Genap)</option>
               <option value="TAHUNAN">Satu Tahun Pelajaran Penuh</option>
             </select>
           </div>
@@ -130,7 +146,7 @@ export const FormatS11_MonthlyRecap: React.FC = () => {
         <OfficialKop
           formatCode="Format S-11"
           formatTitle="BUKU REKAP ABSEN BULANAN SISWA"
-          subTitle={`PERIODE : ${selectedPeriod === 'SEMESTER' ? `SEMESTER ${schoolProfile.semesterAktif === '1' ? 'GANJIL' : 'GENAP'}` : 'SATU TAHUN AJARAN'} TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
+          subTitle={`PERIODE : ${periodLabel} TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
           kelas={effectiveClass === 'ALL' ? 'SELURUH TINGKAT' : `KELAS ${effectiveClass} ${effectiveRombel}`}
         />
 

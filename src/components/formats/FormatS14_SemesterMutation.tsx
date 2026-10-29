@@ -1,14 +1,22 @@
 import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
-import { Printer, Plus, Trash2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { isKelasMatch, toRomanClass } from '../../utils/classUtils';
+import { Printer, Plus, Trash2, ArrowDownLeft, ArrowUpRight, Lock } from 'lucide-react';
 import { StudentMutationRecord } from '../../types';
 
 export const FormatS14_SemesterMutation: React.FC = () => {
   const { schoolProfile, students, mutations, addMutation, deleteMutation } = useSchool();
+  const { userProfile } = useAuth();
+  const isGuruKelas = userProfile?.role === 'guru_kelas';
+
   const [selectedSemester, setSelectedSemester] = useState<'1' | '2'>(schoolProfile.semesterAktif);
   const [selectedRombel, setSelectedRombel] = useState<string>('ALL');
   const [showAddModal, setShowAddModal] = useState(false);
+
+  const effectiveClass = isGuruKelas ? toRomanClass(userProfile?.kelasTugas) : null;
+  const effectiveRombel = isGuruKelas ? (userProfile?.rombelTugas || 'A') : selectedRombel;
 
   // Form State
   const [newStudentName, setNewStudentName] = useState('');
@@ -16,25 +24,31 @@ export const FormatS14_SemesterMutation: React.FC = () => {
   const [newJK, setNewJK] = useState<'L' | 'P'>('L');
   const [newJenis, setNewJenis] = useState<'MASUK' | 'KELUAR'>('KELUAR');
   const [newDate, setNewDate] = useState(new Date().toISOString().slice(0, 10));
-  const [newKelas, setNewKelas] = useState('I');
-  const [newRombel, setNewRombel] = useState('A');
+  const [newKelas, setNewKelas] = useState(isGuruKelas ? (effectiveClass || 'I') : 'I');
+  const [newRombel, setNewRombel] = useState(isGuruKelas ? (effectiveRombel || 'A') : 'A');
   const [newSekolah, setNewSekolah] = useState('');
   const [newAlasan, setNewAlasan] = useState('');
   const [newNoSurat, setNewNoSurat] = useState(`421.2/${Math.floor(100 + Math.random() * 900)}/SDN-PC/${new Date().getFullYear()}`);
 
   const semesterMutations = mutations.filter(m => {
     const sMatch = m.semester === selectedSemester;
-    const rMatch = selectedRombel === 'ALL' || !m.rombel || m.rombel === selectedRombel;
-    return sMatch && rMatch;
+    const kMatch = !isGuruKelas || isKelasMatch(m.kelas, effectiveClass!);
+    const rMatch = !isGuruKelas
+      ? (selectedRombel === 'ALL' || !m.rombel || m.rombel === selectedRombel)
+      : (!m.rombel || m.rombel === effectiveRombel);
+    return sMatch && kMatch && rMatch;
   });
   const mutasiMasuk = semesterMutations.filter(m => m.jenisMutasi === 'MASUK');
   const mutasiKeluar = semesterMutations.filter(m => m.jenisMutasi === 'KELUAR');
 
   // Rekapitulasi angka
   const activeStudents = students.filter(s => {
-    const aMatch = s.statusSiswa === 'aktif';
-    const rMatch = selectedRombel === 'ALL' || !s.rombel || s.rombel === selectedRombel;
-    return aMatch && rMatch;
+    if (s.statusSiswa !== 'aktif') return false;
+    const kMatch = !isGuruKelas || isKelasMatch(s.kelasSekarang, effectiveClass!);
+    const rMatch = !isGuruKelas
+      ? (selectedRombel === 'ALL' || !s.rombel || s.rombel === selectedRombel)
+      : (!s.rombel || s.rombel === effectiveRombel);
+    return kMatch && rMatch;
   });
   const totalL = activeStudents.filter(s => s.jenisKelamin === 'L').length;
   const totalP = activeStudents.filter(s => s.jenisKelamin === 'P').length;
@@ -105,19 +119,26 @@ export const FormatS14_SemesterMutation: React.FC = () => {
             </div>
           </div>
 
-          {/* Filter Rombel: Semua Rombel, Rombel A, Rombel B */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700">Rombel:</span>
-            <select
-              value={selectedRombel}
-              onChange={e => setSelectedRombel(e.target.value)}
-              className="text-xs border border-slate-300 rounded-md px-2.5 py-1.5 bg-white font-semibold text-slate-800"
-            >
-              <option value="ALL">Semua Rombel</option>
-              <option value="A">Rombel A</option>
-              <option value="B">Rombel B</option>
-            </select>
-          </div>
+          {/* Filter Rombel: HANYA tampil untuk Admin / Kepsek. Terkunci untuk Guru Kelas */}
+          {!isGuruKelas ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-700">Rombel:</span>
+              <select
+                value={selectedRombel}
+                onChange={e => setSelectedRombel(e.target.value)}
+                className="text-xs border border-slate-300 rounded-md px-2.5 py-1.5 bg-white font-semibold text-slate-800"
+              >
+                <option value="ALL">Semua Rombel</option>
+                <option value="A">Rombel A</option>
+                <option value="B">Rombel B</option>
+              </select>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs font-bold text-blue-900">
+              <Lock className="w-3.5 h-3.5 text-blue-700" />
+              <span>Rombel Binaan: Kelas {effectiveClass} {effectiveRombel}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

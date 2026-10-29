@@ -1,18 +1,32 @@
 import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
-import { Printer, GraduationCap, CheckCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { isKelasMatch, toRomanClass } from '../../utils/classUtils';
+import { Printer, GraduationCap, CheckCircle, Lock } from 'lucide-react';
 
 export const FormatS20_GraduationPromotion: React.FC = () => {
   const { students, schoolProfile } = useSchool();
-  const [filterClass, setFilterClass] = useState<string>('VI');
-  const [selectedRombel, setSelectedRombel] = useState<string>('A');
+  const { userProfile } = useAuth();
+  const isGuruKelas = userProfile?.role === 'guru_kelas';
+
+  const defaultClass = isGuruKelas ? toRomanClass(userProfile?.kelasTugas) : 'VI';
+  const defaultRombel = isGuruKelas ? (userProfile?.rombelTugas || 'A') : 'A';
+
+  const [filterClass, setFilterClass] = useState<string>(defaultClass);
+  const [selectedRombel, setSelectedRombel] = useState<string>(defaultRombel);
 
   // Siswa kelas VI/terpilih yang lulus atau siswa kelas lainnya
-  const classStudents = students.filter(
-    s => (s.kelasSekarang === filterClass && s.statusSiswa === 'aktif' && (!s.rombel || s.rombel === selectedRombel)) ||
-         (filterClass === 'VI' && s.kelasSekarang === 'VI' && (!s.rombel || s.rombel === selectedRombel))
-  );
+  const classStudents = students.filter(s => {
+    const activeClass = isGuruKelas ? defaultClass : filterClass;
+    const activeRombel = isGuruKelas ? defaultRombel : selectedRombel;
+    const kMatch = isKelasMatch(s.kelasSekarang, activeClass);
+    const rMatch = !s.rombel || s.rombel === activeRombel;
+    return s.statusSiswa === 'aktif' && kMatch && rMatch;
+  });
+
+  const displayClass = isGuruKelas ? defaultClass : filterClass;
+  const displayRombel = isGuruKelas ? defaultRombel : selectedRombel;
 
   const calculateStudentAvg = (s: typeof classStudents[0]) => {
     const sem2 = s.nilaiSemester?.[`${schoolProfile.tahunAjaranAktif}-2`];
@@ -31,33 +45,42 @@ export const FormatS20_GraduationPromotion: React.FC = () => {
       {/* Top Controls */}
       <div className="no-print bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700">Tingkat Kelas:</span>
-            <select
-              value={filterClass}
-              onChange={e => setFilterClass(e.target.value)}
-              className="text-xs px-3 py-1.5 border border-slate-300 rounded-md font-bold text-slate-900 bg-white"
-            >
-              <option value="VI">Kelas VI (Daftar Kelulusan Satuan Pendidikan)</option>
-              <option value="V">Kelas V (Daftar Kenaikan)</option>
-              <option value="IV">Kelas IV (Daftar Kenaikan)</option>
-              <option value="III">Kelas III (Daftar Kenaikan)</option>
-              <option value="II">Kelas II (Daftar Kenaikan)</option>
-              <option value="I">Kelas I (Daftar Kenaikan)</option>
-            </select>
-          </div>
+          {isGuruKelas ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-900 rounded-lg text-xs font-semibold border border-blue-200">
+              <Lock className="w-3.5 h-3.5 text-blue-700" />
+              <span>📌 Rombel Binaan: Kelas {displayClass} {displayRombel}</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-700">Tingkat Kelas:</span>
+                <select
+                  value={filterClass}
+                  onChange={e => setFilterClass(e.target.value)}
+                  className="text-xs px-3 py-1.5 border border-slate-300 rounded-md font-bold text-slate-900 bg-white"
+                >
+                  <option value="VI">Kelas VI (Daftar Kelulusan Satuan Pendidikan)</option>
+                  <option value="V">Kelas V (Daftar Kenaikan)</option>
+                  <option value="IV">Kelas IV (Daftar Kenaikan)</option>
+                  <option value="III">Kelas III (Daftar Kenaikan)</option>
+                  <option value="II">Kelas II (Daftar Kenaikan)</option>
+                  <option value="I">Kelas I (Daftar Kenaikan)</option>
+                </select>
+              </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700">Rombel:</span>
-            <select
-              value={selectedRombel}
-              onChange={e => setSelectedRombel(e.target.value)}
-              className="text-xs px-3 py-1.5 border border-blue-300 rounded-md font-bold text-blue-900 bg-blue-50/50"
-            >
-              <option value="A">Rombel A</option>
-              <option value="B">Rombel B</option>
-            </select>
-          </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-700">Rombel:</span>
+                <select
+                  value={selectedRombel}
+                  onChange={e => setSelectedRombel(e.target.value)}
+                  className="text-xs px-3 py-1.5 border border-blue-300 rounded-md font-bold text-blue-900 bg-blue-50/50"
+                >
+                  <option value="A">Rombel A</option>
+                  <option value="B">Rombel B</option>
+                </select>
+              </div>
+            </>
+          )}
         </div>
 
         <button

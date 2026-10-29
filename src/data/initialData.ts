@@ -466,9 +466,30 @@ export const initialStudents: Student[] = [
 
 export const initialDailyAttendance: DailyAttendanceRecord[] = [
   {
+    id: 'att-2026-06-03-I',
+    tanggal: '2026-06-03',
+    kelas: '1',
+    entries: [
+      { studentId: 'stu-101', status: 'H' },
+      { studentId: 'stu-102', status: 'S' }, // Sakit di tanggal 3
+      { studentId: 'stu-103', status: 'I' }, // Izin
+      { studentId: 'stu-104', status: 'A' }, // Alfa
+    ],
+  },
+  {
+    id: 'att-2026-06-04-I',
+    tanggal: '2026-06-04',
+    kelas: '1',
+    entries: [
+      { studentId: 'stu-101', status: 'H' },
+      { studentId: 'stu-102', status: 'H' },
+      { studentId: 'stu-103', status: 'S' },
+    ],
+  },
+  {
     id: 'att-2026-06-15-I',
     tanggal: '2026-06-15',
-    kelas: 'I',
+    kelas: '1',
     entries: [
       { studentId: 'stu-101', status: 'H' },
       { studentId: 'stu-102', status: 'H' },
@@ -478,7 +499,7 @@ export const initialDailyAttendance: DailyAttendanceRecord[] = [
   {
     id: 'att-2026-06-16-I',
     tanggal: '2026-06-16',
-    kelas: 'I',
+    kelas: '1',
     entries: [
       { studentId: 'stu-101', status: 'H' },
       { studentId: 'stu-102', status: 'H' },

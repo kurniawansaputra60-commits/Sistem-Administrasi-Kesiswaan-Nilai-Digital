@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
-import { CLASS_NUMBERS, ROMBEL_LETTERS, normalizeKelas, isWeekend } from '../../utils/classUtils';
+import { CLASS_NUMBERS, ROMBEL_LETTERS, normalizeKelas } from '../../utils/classUtils';
+import { isDayOff } from '../../utils/holidayUtils';
 import { Printer, Calendar, Lock } from 'lucide-react';
 
 export const FormatS9_DailyRecap: React.FC = () => {
@@ -37,20 +38,16 @@ export const FormatS9_DailyRecap: React.FC = () => {
     const dateStr = `${selectedMonth}-${String(dayNum).padStart(2, '0')}`;
     const dateObj = new Date(Number(yearStr), Number(monthStr) - 1, dayNum);
     const dayName = new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(dateObj);
-    const weekend = isWeekend(dateObj); // Sabtu dan Minggu Libur
+    const dayOffCheck = isDayOff(dateObj); // Cek libur akhir pekan (Sabtu & Minggu) atau libur nasional/PHBN/PHBI
 
-    // Filter attendance for this date
-    const recs = attendances.filter(a => {
-      if (a.tanggal !== dateStr) return false;
-      if (selectedClass !== 'ALL' && normalizeKelas(a.kelas) !== selectedClass) return false;
-      return true;
-    });
+    // Filter attendance for this date across active students in scoped class/rombel
+    const recs = attendances.filter(a => a.tanggal === dateStr);
 
     let s = 0;
     let izin = 0;
     let alpa = 0;
 
-    if (!weekend) {
+    if (!dayOffCheck.isLibur) {
       recs.forEach(r => {
         r.entries.forEach(e => {
           const inActive = activeStudents.some(st => st.id === e.studentId);
@@ -64,16 +61,15 @@ export const FormatS9_DailyRecap: React.FC = () => {
     }
 
     const absent = s + izin + alpa;
-    const present = weekend ? 0 : Math.max(0, totalRegistered - absent);
-    const pct = weekend || totalRegistered === 0 ? 0 : Math.round((present / totalRegistered) * 100);
+    const present = dayOffCheck.isLibur ? 0 : Math.max(0, totalRegistered - absent);
+    const pct = dayOffCheck.isLibur || totalRegistered === 0 ? 0 : Math.round((present / totalRegistered) * 100);
 
     return {
       dateStr,
       dayNum,
       dayName,
-      weekend,
-      isSaturday: dateObj.getDay() === 6,
-      isSunday: dateObj.getDay() === 0,
+      isLibur: dayOffCheck.isLibur,
+      liburReason: dayOffCheck.reason,
       s,
       izin,
       alpa,
@@ -186,8 +182,8 @@ export const FormatS9_DailyRecap: React.FC = () => {
                 <tr
                   key={day.dateStr}
                   className={`text-center ${
-                    day.weekend
-                      ? 'bg-rose-50 text-rose-800 font-semibold'
+                    day.isLibur
+                      ? 'bg-rose-50/70 text-rose-800 font-semibold'
                       : 'hover:bg-slate-50'
                   }`}
                 >
@@ -197,20 +193,20 @@ export const FormatS9_DailyRecap: React.FC = () => {
                   <td className="border border-slate-800 p-1 font-mono tabular-nums">{totalP}</td>
                   <td className="border border-slate-800 p-1 font-mono tabular-nums bg-slate-100 font-bold">{totalRegistered}</td>
                   <td className="border border-slate-800 p-1 font-mono tabular-nums font-bold text-emerald-800">
-                    {day.weekend ? '-' : day.present}
+                    {day.isLibur ? '-' : day.present}
                   </td>
-                  <td className="border border-slate-800 p-1 font-mono tabular-nums">{day.weekend ? '-' : day.s || '-'}</td>
-                  <td className="border border-slate-800 p-1 font-mono tabular-nums">{day.weekend ? '-' : day.izin || '-'}</td>
-                  <td className="border border-slate-800 p-1 font-mono tabular-nums">{day.weekend ? '-' : day.alpa || '-'}</td>
+                  <td className="border border-slate-800 p-1 font-mono tabular-nums">{day.isLibur ? '-' : day.s || '-'}</td>
+                  <td className="border border-slate-800 p-1 font-mono tabular-nums">{day.isLibur ? '-' : day.izin || '-'}</td>
+                  <td className="border border-slate-800 p-1 font-mono tabular-nums">{day.isLibur ? '-' : day.alpa || '-'}</td>
                   <td className="border border-slate-800 p-1 font-mono tabular-nums font-semibold bg-amber-50">
-                    {day.weekend ? '-' : day.absent || '0'}
+                    {day.isLibur ? '-' : day.absent || '0'}
                   </td>
                   <td className="border border-slate-800 p-1 font-mono tabular-nums">
-                    {day.weekend ? '-' : `${day.pct}%`}
+                    {day.isLibur ? '-' : `${day.pct}%`}
                   </td>
-                  <td className="border border-slate-800 p-1 text-left text-[10px] pl-2">
-                    {day.weekend
-                      ? `Hari Libur Akhir Pekan (${day.dayName})`
+                  <td className="border border-slate-800 p-1 text-left text-[10px] pl-2 font-medium">
+                    {day.isLibur
+                      ? day.liburReason
                       : day.absent === 0
                       ? 'Nihil'
                       : `S:${day.s} I:${day.izin} A:${day.alpa}`}

@@ -3,7 +3,8 @@ import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
 import { ALL_ROMBELS, normalizeKelas } from '../../utils/classUtils';
-import { Printer, Calendar, Lock } from 'lucide-react';
+import { isDayOff } from '../../utils/holidayUtils';
+import { Printer, Calendar, Lock, AlertCircle } from 'lucide-react';
 
 export const FormatS8_DailyBoard: React.FC = () => {
   const { students, schoolProfile, attendances } = useSchool();
@@ -12,11 +13,12 @@ export const FormatS8_DailyBoard: React.FC = () => {
   const effectiveKelas = userProfile?.kelasTugas || '1';
   const effectiveRombel = userProfile?.rombelTugas || 'A';
 
-  const [selectedDate, setSelectedDate] = useState<string>('2026-06-15');
+  const [selectedDate, setSelectedDate] = useState<string>('2026-06-03');
   const [selectedRombelSign, setSelectedRombelSign] = useState<string>('ALL');
 
   const activeStudents = students.filter(s => s.statusSiswa === 'aktif');
   const attendanceForDate = attendances.filter(a => a.tanggal === selectedDate);
+  const holidayCheck = isDayOff(new Date(selectedDate));
 
   // Matriks per rombel (1A s/d 6B) - Terkunci ke rombel binaan jika Guru Kelas
   const displayedRombels = isGuruKelas
@@ -34,26 +36,27 @@ export const FormatS8_DailyBoard: React.FC = () => {
     const totalP = inClass.filter(s => s.jenisKelamin === 'P').length;
     const totalSiswa = inClass.length;
 
-    // Get attendance record for this class & rombel
-    const classRecord = attendanceForDate.find(r => normalizeKelas(r.kelas) === rInfo.kelas);
+    // Sinkronisasi S, I, A dengan mencocokkan ID Siswa di rombel ini dari seluruh record tanggal terpilih
     let sCount = 0;
     let iCount = 0;
     let aCount = 0;
 
-    if (classRecord) {
-      classRecord.entries.forEach(e => {
-        const isStudentInThisRombel = inClass.some(st => st.id === e.studentId);
-        if (isStudentInThisRombel) {
-          if (e.status === 'S') sCount++;
-          else if (e.status === 'I') iCount++;
-          else if (e.status === 'A') aCount++;
-        }
+    if (!holidayCheck.isLibur) {
+      attendanceForDate.forEach(classRecord => {
+        classRecord.entries.forEach(e => {
+          const matchedStudent = inClass.find(st => st.id === e.studentId);
+          if (matchedStudent) {
+            if (e.status === 'S') sCount++;
+            else if (e.status === 'I') iCount++;
+            else if (e.status === 'A') aCount++;
+          }
+        });
       });
     }
 
     const totalAbsent = sCount + iCount + aCount;
-    const totalPresent = Math.max(0, totalSiswa - totalAbsent);
-    const percentage = totalSiswa > 0 ? Math.round((totalPresent / totalSiswa) * 100) : 100;
+    const totalPresent = holidayCheck.isLibur ? 0 : Math.max(0, totalSiswa - totalAbsent);
+    const percentage = totalSiswa > 0 && !holidayCheck.isLibur ? Math.round((totalPresent / totalSiswa) * 100) : holidayCheck.isLibur ? 0 : 100;
 
     return {
       kelas: rInfo.kelas,
@@ -79,8 +82,8 @@ export const FormatS8_DailyBoard: React.FC = () => {
   const totalAllI = boardData.reduce((acc, r) => acc + r.iCount, 0);
   const totalAllA = boardData.reduce((acc, r) => acc + r.aCount, 0);
   const totalAllAbsent = totalAllS + totalAllI + totalAllA;
-  const totalAllPresent = totalAllStudents - totalAllAbsent;
-  const avgPercentage = totalAllStudents > 0 ? Math.round((totalAllPresent / totalAllStudents) * 100) : 100;
+  const totalAllPresent = holidayCheck.isLibur ? 0 : totalAllStudents - totalAllAbsent;
+  const avgPercentage = totalAllStudents > 0 && !holidayCheck.isLibur ? Math.round((totalAllPresent / totalAllStudents) * 100) : holidayCheck.isLibur ? 0 : 100;
 
   const selectedRombelObj = ALL_ROMBELS.find(r => r.code === selectedRombelSign);
 
@@ -132,6 +135,13 @@ export const FormatS8_DailyBoard: React.FC = () => {
           <span>Cetak Papan Absensi (S-8)</span>
         </button>
       </div>
+
+      {holidayCheck.isLibur && (
+        <div className="no-print bg-rose-50 border border-rose-200 p-3 rounded-lg text-xs text-rose-800 flex items-center gap-2 font-medium">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span><strong>HARI LIBUR:</strong> Tanggal {selectedDate} merupakan <u>{holidayCheck.reason}</u>. Kegiatan KBM dan presensi diliburkan.</span>
+        </div>
+      )}
 
       {/* Official S-8 Board Document */}
       <div className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-xs print:border-none print:shadow-none print:p-0 print:m-0 text-slate-900 text-xs">

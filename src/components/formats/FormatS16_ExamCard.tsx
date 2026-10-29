@@ -1,16 +1,34 @@
 import React, { useState } from 'react';
 import { OfficialKop } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
-import { Printer, CreditCard } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { isKelasMatch, toRomanClass } from '../../utils/classUtils';
+import { Printer, CreditCard, Lock } from 'lucide-react';
 
 export const FormatS16_ExamCard: React.FC = () => {
   const { students, schoolProfile, examCandidates } = useSchool();
+  const { userProfile } = useAuth();
+  const isGuruKelas = userProfile?.role === 'guru_kelas';
+
+  const effectiveClass = isGuruKelas ? toRomanClass(userProfile?.kelasTugas) : null;
+  const effectiveRombel = isGuruKelas ? (userProfile?.rombelTugas || 'A') : null;
+
+  // Filter kandidat sesuai rombel binaan bila Guru Kelas
+  const scopedCandidates = examCandidates.filter(c => {
+    if (!isGuruKelas) return true;
+    const st = students.find(s => s.id === c.studentId);
+    if (!st) return true;
+    const kMatch = isKelasMatch(st.kelasSekarang, effectiveClass!);
+    const rMatch = (st.rombel || 'A') === effectiveRombel;
+    return kMatch && rMatch;
+  });
+
   const [selectedStudentId, setSelectedStudentId] = useState<string>(
-    examCandidates[0]?.studentId || students[0]?.id || ''
+    scopedCandidates[0]?.studentId || students[0]?.id || ''
   );
   const [printAllMode, setPrintAllMode] = useState(false);
 
-  const candidate = examCandidates.find(c => c.studentId === selectedStudentId) || examCandidates[0];
+  const candidate = scopedCandidates.find(c => c.studentId === selectedStudentId) || scopedCandidates[0] || examCandidates[0];
   const student = students.find(s => s.id === (candidate ? candidate.studentId : selectedStudentId)) || students[0];
 
   const examSchedules = [
@@ -149,6 +167,13 @@ export const FormatS16_ExamCard: React.FC = () => {
       {/* Top Filter and Actions */}
       <div className="no-print bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
+          {isGuruKelas && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs font-bold text-blue-900">
+              <Lock className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+              <span>Rombel Binaan: Kelas {userProfile?.kelasTugas} {userProfile?.rombelTugas}</span>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-slate-700">Pilih Peserta:</span>
             <select
@@ -156,7 +181,7 @@ export const FormatS16_ExamCard: React.FC = () => {
               onChange={e => setSelectedStudentId(e.target.value)}
               className="text-xs border border-slate-300 rounded-md px-3 py-1.5 bg-white font-medium min-w-[240px]"
             >
-              {examCandidates.map(c => (
+              {scopedCandidates.map(c => (
                 <option key={c.studentId} value={c.studentId}>
                   {c.nomorPesertaUjian} - {c.namaLengkap} ({c.kelas})
                 </option>
@@ -171,7 +196,7 @@ export const FormatS16_ExamCard: React.FC = () => {
               onChange={e => setPrintAllMode(e.target.checked)}
               className="rounded text-emerald-700"
             />
-            <span className="font-medium">Mode Cetak Semua Kartu Peserta</span>
+            <span className="font-medium">Mode Cetak Semua Kartu Peserta Rombel Binaan</span>
           </label>
         </div>
 
@@ -192,7 +217,7 @@ export const FormatS16_ExamCard: React.FC = () => {
 
         {printAllMode ? (
           <div className="space-y-6">
-            {examCandidates.map((c, idx) => {
+            {scopedCandidates.map((c, idx) => {
               const st = students.find(s => s.id === c.studentId) || student;
               return renderSingleCard(c, st, idx);
             })}

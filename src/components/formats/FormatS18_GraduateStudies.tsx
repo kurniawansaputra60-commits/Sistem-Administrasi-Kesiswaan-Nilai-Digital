@@ -1,16 +1,28 @@
 import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
-import { Printer, Plus, GraduationCap, Building } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { Printer, Plus, GraduationCap, Lock } from 'lucide-react';
 import { GraduateStudyRecord } from '../../types';
 
 export const FormatS18_GraduateStudies: React.FC = () => {
-  const { students, schoolProfile, gradStudies, addGraduateStudy, updateGraduateStudy } = useSchool();
+  const { students, schoolProfile, gradStudies, addGraduateStudy } = useSchool();
+  const { userProfile } = useAuth();
+  const isGuruKelas = userProfile?.role === 'guru_kelas';
+  const effectiveRombel = isGuruKelas ? (userProfile?.rombelTugas || 'A') : 'ALL';
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
+  // Filter siswa kelas VI sesuai rombel binaan
+  const class6Students = students.filter(s => {
+    const is6 = s.kelasSekarang === 'VI' || s.kelasSekarang === '6';
+    const matchRombel = !isGuruKelas || (s.rombel || 'A') === userProfile?.rombelTugas;
+    return is6 && matchRombel;
+  });
+
   // Form State
-  const [studentId, setStudentId] = useState<string>(students.filter(s => s.kelasSekarang === 'VI')[0]?.id || students[0]?.id || '');
+  const [studentId, setStudentId] = useState<string>(class6Students[0]?.id || students[0]?.id || '');
   const [statusStudi, setStatusStudi] = useState<GraduateStudyRecord['statusStudi']>('MELANJUTKAN');
   const [namaSekolahLanjutan, setNamaSekolahLanjutan] = useState('SMP Negeri 1 Jakarta');
   const [jenisSekolahLanjutan, setJenisSekolahLanjutan] = useState<GraduateStudyRecord['jenisSekolahLanjutan']>('SMP Negeri');
@@ -19,8 +31,11 @@ export const FormatS18_GraduateStudies: React.FC = () => {
   const [keterangan, setKeterangan] = useState('Diterima melalui Jalur Zonasi Reguler');
 
   const filtered = gradStudies.filter(g => {
-    if (filterStatus === 'ALL') return true;
-    return g.statusStudi === filterStatus;
+    const statusMatch = filterStatus === 'ALL' || g.statusStudi === filterStatus;
+    if (!isGuruKelas) return statusMatch;
+    const st = students.find(s => s.id === g.studentId);
+    const rombelMatch = !st || (st.rombel || 'A') === userProfile?.rombelTugas;
+    return statusMatch && rombelMatch;
   });
 
   const handleSaveStudy = (e: React.FormEvent) => {
@@ -54,14 +69,21 @@ export const FormatS18_GraduateStudies: React.FC = () => {
     <div className="space-y-6">
       {/* Top Filter and Actions */}
       <div className="no-print bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {isGuruKelas && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs font-bold text-blue-900">
+              <Lock className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+              <span>Rombel Binaan: Kelas VI {userProfile?.rombelTugas}</span>
+            </div>
+          )}
+
           <span className="text-xs font-semibold text-slate-700">Filter Status Studi:</span>
           <select
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value)}
             className="text-xs px-3 py-1.5 border border-slate-300 rounded-md bg-white font-medium"
           >
-            <option value="ALL">Semua Lulusan ({gradStudies.length})</option>
+            <option value="ALL">Semua Lulusan ({filtered.length})</option>
             <option value="MELANJUTKAN">Melanjutkan ke SMP/MTs ({melanjutkanCount})</option>
             <option value="TIDAK_MELANJUTKAN">Tidak Melanjutkan ({tidakCount})</option>
           </select>
@@ -92,6 +114,7 @@ export const FormatS18_GraduateStudies: React.FC = () => {
           formatCode="Format S-18"
           formatTitle="DAFTAR SISWA MASUK SLTP/MTS"
           subTitle={`PENELUSURAN ALUMNI TAHUN KELULUSAN ${schoolProfile.tahunAjaranAktif} (WAJIB BELAJAR 9/12 TAHUN)`}
+          kelas={`VI - ${effectiveRombel}`}
         />
 
         <div className="overflow-x-auto">
@@ -147,10 +170,10 @@ export const FormatS18_GraduateStudies: React.FC = () => {
           <span>Melanjutkan : {melanjutkanCount} Orang</span>
           <span>Tidak Melanjutkan : {tidakCount} Orang</span>
           <span>Persentase Melanjutkan : <strong className="text-emerald-800">{pctMelanjutkan}%</strong></span>
-          <span>Total Lulusan : {gradStudies.length} Orang</span>
+          <span>Total Lulusan : {filtered.length} Orang</span>
         </div>
 
-        <OfficialSignature waliKelasLabel="Koordinator Penelusuran Lulusan" />
+        <OfficialSignature waliKelasLabel={isGuruKelas ? `Wali Kelas VI ${effectiveRombel}` : "Koordinator Penelusuran Lulusan"} />
       </div>
 
       {/* Modal Catat Lanjutan Studi */}
@@ -176,7 +199,7 @@ export const FormatS18_GraduateStudies: React.FC = () => {
                   className="w-full px-3 py-1.5 border border-slate-300 rounded"
                   required
                 >
-                  {students.map(s => (
+                  {class6Students.map(s => (
                     <option key={s.id} value={s.id}>
                       {s.namaLengkap} - Kelas {s.kelasSekarang} (NIS: {s.nis})
                     </option>

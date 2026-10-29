@@ -207,6 +207,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
     }
 
     if (role === 'guru_kelas') {
+      const isClass6Teacher = userProfile?.kelasTugas === '6' || userProfile?.kelasTugas === 'VI';
+
+      const kelulusanItems: NavItem[] = [
+        { key: 's19-grade-promotion', label: 'Daftar Kenaikan Kelas', formatTag: 'S-19', icon: Award },
+      ];
+
+      if (isClass6Teacher) {
+        kelulusanItems.push(
+          { key: 's18-graduate-studies', label: 'Daftar Masuk SLTP/MTS', formatTag: 'S-18', icon: GraduationCap },
+          { key: 's20-graduation', label: 'Rekap Kenaikan & Kelulusan', formatTag: 'S-20', icon: Award }
+        );
+      }
+
       return [
         {
           id: 'guru_main',
@@ -217,7 +230,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
             { key: 'student-grades', label: 'Input & Leger Nilai Rapor', formatTag: 'LEGER', icon: Award },
           ],
         },
-        // Sesuai permintaan: Buku Utama Data Siswa untuk Wali Kelas HANYA Buku Induk S-4 (S-5, PS-5a, PS-5b disembunyikan)
+        // Buku Utama Data Siswa untuk Wali Kelas HANYA Buku Induk S-4
         {
           id: 'guru_bukuUtama',
           title: '2. Buku Utama Data Siswa',
@@ -226,7 +239,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
             { key: 's4-master-book', label: 'Buku Induk Siswa', formatTag: 'S-4', icon: BookOpen },
           ],
         },
-        // Sesuai permintaan: Menu Statistik & Klasifikasi Siswa muncul di semua Wali Kelas!
         allSections.statistik,
         allSections.presensi,
         {
@@ -234,6 +246,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
           title: '5. Mutasi Siswa Kelas',
           shortTitle: '5. Mutasi Kelas',
           items: [
+            { key: 's14-mutation-semester', label: 'Buku Mutasi Semesteran', formatTag: 'S-14', icon: ArrowLeftRight },
             { key: 'ps14a-mutation-class', label: 'Buku Mutasi Siswa Kelas', formatTag: 'PS-14a', icon: ArrowLeftRight },
           ],
         },
@@ -243,16 +256,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
           shortTitle: '6. Evaluasi',
           items: [
             { key: 'student-grades', label: 'Input & Leger Nilai Rapor', formatTag: 'LEGER', icon: Award },
+            { key: 's16-exam-card', label: 'Tanda Peserta UAS (Kartu)', formatTag: 'S-16', icon: CreditCard },
             { key: 's17-exam-results', label: 'Daftar Nilai UAS Siswa', formatTag: 'S-17', icon: Trophy },
           ],
         },
         {
           id: 'guru_kelulusan',
-          title: '7. Kenaikan Kelas Siswa',
-          shortTitle: '7. Kenaikan',
-          items: [
-            { key: 's19-grade-promotion', label: 'Daftar Kenaikan Kelas', formatTag: 'S-19', icon: Award },
-          ],
+          title: '7. Kenaikan & Kelulusan Siswa',
+          shortTitle: '7. Kelulusan',
+          items: kelulusanItems,
         },
         allSections.kurikulum,
       ];
