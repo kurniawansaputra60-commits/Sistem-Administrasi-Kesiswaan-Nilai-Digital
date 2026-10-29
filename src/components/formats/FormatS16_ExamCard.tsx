@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { OfficialKop } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
-import { isKelasMatch, toRomanClass, formatPlaceAndBirthDate } from '../../utils/classUtils';
+import { isKelasMatch, toRomanClass, formatPlaceAndBirthDate, normalizeKelas } from '../../utils/classUtils';
 import { Printer, CreditCard, Lock } from 'lucide-react';
 
 export const FormatS16_ExamCard: React.FC = () => {
@@ -36,14 +36,15 @@ export const FormatS16_ExamCard: React.FC = () => {
   const currentSemester = schoolProfile.semesterAktif || '1';
 
   const getExamTitle = (cls?: string) => {
-    const isClass6 = cls === 'VI' || cls === '6';
+    const isClass6 = normalizeKelas(cls) === '6';
     if (selectedExamCategory === 'ASAJ' || isClass6) return 'ASAJ (ASESMEN SUMATIF AKHIR JENJANG)';
     if (selectedExamCategory === 'ASAT') return 'ASAT (ASESMEN SUMATIF AKHIR TAHUN)';
     return 'ASAS (ASESMEN SUMATIF AKHIR SEMESTER)';
   };
 
   const getExamSchedules = (cls?: string) => {
-    const isClass1Or2 = cls === '1' || cls === '2' || cls === 'I' || cls === 'II';
+    const normClass = normalizeKelas(cls);
+    const isClass1Or2 = normClass === '1' || normClass === '2';
     if (isClass1Or2) {
       // Total 9 Mata Pelajaran untuk Kelas 1 & 2 (Tanpa IPAS, SBdP di hari Jumat)
       return [
@@ -75,9 +76,12 @@ export const FormatS16_ExamCard: React.FC = () => {
   };
 
   const renderSingleCard = (cand: typeof examCandidates[0], st: typeof student, index: number) => {
-    const studentClass = st ? st.kelasSekarang : 'VI';
-    const examTitle = getExamTitle(studentClass);
-    const examSchedules = getExamSchedules(studentClass);
+    const rawClass = st ? st.kelasSekarang : (cand?.kelas || 'VI');
+    const romanClass = toRomanClass(rawClass);
+    const studentRombel = st?.rombel || effectiveRombel || 'A';
+
+    const examTitle = getExamTitle(rawClass);
+    const examSchedules = getExamSchedules(rawClass);
 
     let lastDate = '';
 
@@ -136,7 +140,7 @@ export const FormatS16_ExamCard: React.FC = () => {
             </div>
             <div className="grid grid-cols-3">
               <span className="text-slate-600">Kelas / Sesi</span>
-              <span className="col-span-2 font-semibold">: Kelas {studentClass} / Pagi</span>
+              <span className="col-span-2 font-semibold">: Kelas {romanClass} {studentRombel} / Sesi 1 (Pagi)</span>
             </div>
           </div>
 
