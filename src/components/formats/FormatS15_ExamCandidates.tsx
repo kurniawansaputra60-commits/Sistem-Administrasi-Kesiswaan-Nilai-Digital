@@ -71,12 +71,12 @@ export const FormatS15_ExamCandidates: React.FC = () => {
                   onChange={e => setSelectedClass(e.target.value)}
                   className="text-xs px-3 py-1.5 border border-slate-300 rounded-md font-bold text-slate-900 bg-white"
                 >
-                  <option value="VI">Kelas VI (Ujian Sekolah / Asesmen Akhir Jenjang)</option>
-                  <option value="V">Kelas V (Ujian Akhir Semester / ASAS)</option>
-                  <option value="IV">Kelas IV (Ujian Akhir Semester / ASAS)</option>
-                  <option value="III">Kelas III (Ujian Akhir Semester / ASAS)</option>
-                  <option value="II">Kelas II (Ujian Akhir Semester / ASAS)</option>
-                  <option value="I">Kelas I (Ujian Akhir Semester / ASAS)</option>
+                  <option value="VI">Kelas VI (ASAJ - Asesmen Sumatif Akhir Jenjang)</option>
+                  <option value="V">Kelas V (ASAT / ASAS - Asesmen Sumatif Akhir Tahun / Semester)</option>
+                  <option value="IV">Kelas IV (ASAT / ASAS - Asesmen Sumatif Akhir Tahun / Semester)</option>
+                  <option value="III">Kelas III (ASAT / ASAS - Asesmen Sumatif Akhir Tahun / Semester)</option>
+                  <option value="II">Kelas II (ASAT / ASAS - Asesmen Sumatif Akhir Tahun / Semester)</option>
+                  <option value="I">Kelas I (ASAT / ASAS - Asesmen Sumatif Akhir Tahun / Semester)</option>
                 </select>
               </div>
 
@@ -120,8 +120,8 @@ export const FormatS15_ExamCandidates: React.FC = () => {
       <div className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-xs print:border-none print:shadow-none print:p-0 print:m-0 text-slate-900 text-xs">
         <OfficialKop
           formatCode="S-15"
-          formatTitle="DAFTAR CALON PESERTA UJIAN AKHIR SEMESTER / UJIAN SEKOLAH"
-          subTitle={`DAFTAR NOMINASI TETAP (DNT) TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
+          formatTitle="DAFTAR CALON PESERTA UJIAN (ASAS / ASAT / ASAJ)"
+          subTitle={`DAFTAR NOMINASI TETAP (DNT) ASAS / ASAT / ASAJ TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
           kelas={`${effectiveClass} - ${effectiveRombel}`}
         />
 

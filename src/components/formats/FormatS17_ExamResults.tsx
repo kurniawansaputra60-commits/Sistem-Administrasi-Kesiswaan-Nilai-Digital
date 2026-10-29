@@ -218,12 +218,12 @@ export const FormatS17_ExamResults: React.FC<FormatS17Props> = ({ onNavigateToLe
                   onChange={e => setSelectedClass(e.target.value)}
                   className="text-xs border border-slate-300 rounded-md px-3 py-1.5 bg-white font-medium"
                 >
-                  <option value="I">Kelas I</option>
-                  <option value="II">Kelas II</option>
-                  <option value="III">Kelas III</option>
-                  <option value="IV">Kelas IV</option>
-                  <option value="V">Kelas V</option>
-                  <option value="VI">Kelas VI (UAS Akhir Jenjang)</option>
+                  <option value="I">Kelas I (ASAS / ASAT)</option>
+                  <option value="II">Kelas II (ASAS / ASAT)</option>
+                  <option value="III">Kelas III (ASAS / ASAT)</option>
+                  <option value="IV">Kelas IV (ASAS / ASAT)</option>
+                  <option value="V">Kelas V (ASAS / ASAT)</option>
+                  <option value="VI">Kelas VI (ASAJ)</option>
                 </select>
               </div>
 
@@ -284,7 +284,7 @@ export const FormatS17_ExamResults: React.FC<FormatS17Props> = ({ onNavigateToLe
             onClick={() => window.print()}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md hover:bg-slate-900 cursor-pointer shadow-xs"
           >
-            <Printer className="w-3.5 h-3.5" /> Cetak Hasil UAS (S-17)
+            <Printer className="w-3.5 h-3.5" /> Cetak Hasil Evaluasi (S-17)
           </button>
         </div>
       </div>
@@ -292,7 +292,7 @@ export const FormatS17_ExamResults: React.FC<FormatS17Props> = ({ onNavigateToLe
       {saveSuccess && (
         <div className="no-print bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-2.5 rounded-lg text-xs font-medium flex items-center gap-2">
           <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>Nilai UAS peserta berhasil diperbarui dan disimpan secara permanen ke database!</span>
+          <span>Nilai peserta berhasil diperbarui dan disimpan secara permanen ke database!</span>
         </div>
       )}
 
@@ -300,8 +300,8 @@ export const FormatS17_ExamResults: React.FC<FormatS17Props> = ({ onNavigateToLe
       <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-xs print:p-0 print:border-none print:shadow-none print:w-full space-y-4 text-slate-900 text-xs">
         <OfficialKop
           formatCode="Format S-17"
-          title="DAFTAR PESERTA UAS DAN PRESTASINYA"
-          subtitle={`REKAPITULASI HASIL NILAI UJIAN AKHIR SEMESTER (UAS) KELAS ${effectiveClass} ${effectiveRombel} TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
+          title="DAFTAR PESERTA UJIAN (ASAS / ASAT / ASAJ) DAN PRESTASINYA"
+          subtitle={`REKAPITULASI HASIL EVALUASI NILAI UJIAN (ASAS / ASAT / ASAJ) KELAS ${effectiveClass} ${effectiveRombel} TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
           kelas={`${effectiveClass} - ${effectiveRombel}`}
         />
 
