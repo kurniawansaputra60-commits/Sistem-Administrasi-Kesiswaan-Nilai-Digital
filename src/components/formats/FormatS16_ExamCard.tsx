@@ -110,11 +110,28 @@ export const FormatS16_ExamCard: React.FC = () => {
     const bannerUrl = schoolProfile.kopBannerUrl || '/assets/aistudio/KOP_SURAT_NEW_e0e5ed69.png';
     const useBanner = schoolProfile.useBannerKop !== false && !!bannerUrl;
 
+    let waliObj = (studentRombel
+      ? schoolProfile.waliKelasList?.find(w => isKelasMatch(w.kelas, rawClass) && (w.rombel === studentRombel || (!w.rombel && studentRombel === 'A')))
+      : null) || schoolProfile.waliKelasList?.find(w => isKelasMatch(w.kelas, rawClass));
+
+    const waliNama = waliObj?.nama || schoolProfile.namaWaliKelas;
+    const waliNip = waliObj?.nip || schoolProfile.nipWaliKelas;
+    const waliTtd = waliObj?.ttdUrl;
+    const waliTitle = `Wali Kelas ${romanClass} ${studentRombel}`;
+
     return (
       <div
         key={cand ? cand.id : index}
-        className="border-2 border-slate-900 p-5 rounded-lg bg-white relative max-w-xl mx-auto break-inside-avoid mb-6 shadow-xs text-xs"
+        className="border-2 border-slate-900 p-5 rounded-lg bg-white relative max-w-2xl mx-auto break-inside-avoid mb-6 shadow-xs text-xs"
       >
+        <style>{`
+          @media print {
+            @page {
+              size: B4 landscape;
+              margin: 10mm;
+            }
+          }
+        `}</style>
         {/* Format Tag */}
         <div className="flex justify-end mb-1">
           <span className="text-[9px] font-bold border border-slate-900 px-1.5 py-0.2 uppercase bg-white">
@@ -286,26 +303,40 @@ export const FormatS16_ExamCard: React.FC = () => {
           </table>
         </div>
 
-        {/* Card Footer Signature */}
-        <div className="flex justify-between items-end pt-2 text-[10px]">
-          <div className="text-slate-500 italic max-w-[240px]">
-            Catatan: Wajib dibawa setiap sesi ujian. Tidak boleh dilipat atau dicoret-coret.
-          </div>
-          <div className="text-center min-w-[160px]">
-            <div>{schoolProfile.kabupatenKota}, 15 Mei 2026</div>
-            <div className="font-semibold">Kepala Sekolah,</div>
-            <div className="h-10 flex items-center justify-center my-1">
-              {schoolProfile.kepalaSekolahTtdUrl ? (
+        {/* Card Footer Signature: Menampilkan Wali Kelas & Kepala Sekolah */}
+        <div className="grid grid-cols-2 gap-4 items-end pt-2 text-[10px] border-t border-slate-200">
+          <div className="text-center">
+            <div className="font-semibold">{waliTitle}</div>
+            <div className="h-10 flex items-center justify-center my-0.5">
+              {waliTtd ? (
                 <img
-                  src={schoolProfile.kepalaSekolahTtdUrl}
-                  alt="TTD Kepala Sekolah"
-                  className="max-h-10 max-w-[120px] object-contain"
+                  src={waliTtd}
+                  alt={`TTD ${waliNama}`}
+                  className="max-h-10 max-w-[110px] object-contain"
                 />
               ) : (
                 <div className="h-10"></div>
               )}
             </div>
-            <div className="font-bold underline">{schoolProfile.namaKepalaSekolah}</div>
+            <div className="font-bold underline uppercase">{waliNama}</div>
+            <div className="font-mono text-[9px]">NIP. {waliNip}</div>
+          </div>
+
+          <div className="text-center">
+            <div>{schoolProfile.kabupatenKota}, 15 Mei 2026</div>
+            <div className="font-semibold">Kepala Sekolah,</div>
+            <div className="h-10 flex items-center justify-center my-0.5">
+              {schoolProfile.kepalaSekolahTtdUrl ? (
+                <img
+                  src={schoolProfile.kepalaSekolahTtdUrl}
+                  alt="TTD Kepala Sekolah"
+                  className="max-h-10 max-w-[110px] object-contain"
+                />
+              ) : (
+                <div className="h-10"></div>
+              )}
+            </div>
+            <div className="font-bold underline uppercase">{schoolProfile.namaKepalaSekolah}</div>
             <div className="font-mono text-[9px]">NIP. {schoolProfile.nipKepalaSekolah}</div>
           </div>
         </div>

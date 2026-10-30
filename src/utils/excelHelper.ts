@@ -245,6 +245,15 @@ export function downloadStudentExcelTemplate(schoolName: string = 'SD NEGERI PER
   XLSX.writeFile(wb, filename);
 }
 
+export function normalizeIncomeString(val?: string): string {
+  if (!val || !String(val).trim()) return 'Tidak Berpenghasilan';
+  return String(val)
+    .replace(/[\u2013\u2014\u2212~]/g, '-')
+    .replace(/\s*-\s*/g, ' - ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /**
  * Baca dan validasi file Excel (.xlsx / .xls / .csv) yang diunggah pengguna
  */
@@ -340,19 +349,19 @@ export async function parseStudentExcelFile(file: File): Promise<ExcelImportRow[
     const kelurahan = getVal('Kelurahan', 'kelurahan') || 'Cempaka';
     const kecamatan = getVal('Kecamatan', 'kecamatan') || 'Warunggunung';
     const kabupatenKota = getVal('Kota / Kabupaten', 'Kabupaten', 'Kota', 'kabupatenkota') || 'Kabupaten Lebak';
-    const provinsi = getVal('Provinsi', 'provinsi') || 'Banten';
+    const provinsi = getVal('Provinsi', 'Prov', 'provinsi') || 'Banten';
 
     // Perbaikan komprehensif pembacaan Data Ayah dan Ibu dari berbagai variasi header Excel
     const namaAyah = getVal('Nama Ayah', 'Nama Ayah Kandung', 'Ayah Kandung', 'Ayah', 'Nama Bapak', 'Bapak', 'Nama Orang Tua', 'Nama Ortu', 'namaayah');
     const pendidikanAyah = getVal('Pendidikan Ayah', 'Pendidikan Ayah Kandung', 'Pendidikan Bapak', 'pendidikanayah') || 'SMA';
     const pekerjaanAyah = getVal('Pekerjaan Ayah', 'Pekerjaan Ayah Kandung', 'Kerja Ayah', 'Pekerjaan Bapak', 'pekerjaanayah') || 'Swasta';
-    const penghasilanAyah = getVal('Penghasilan Ayah', 'Penghasilan Ayah Kandung', 'Gaji Ayah', 'penghasilanayah') || '3.000.000 - 5.000.000';
+    const penghasilanAyah = normalizeIncomeString(getVal('Penghasilan Ayah', 'Penghasilan Ayah Kandung', 'Gaji Ayah', 'penghasilanayah') || '3.000.000 - 5.000.000');
     const noHpAyah = getVal('No HP Orang Tua', 'No HP Ayah', 'No HP Ortu', 'No HP', 'Telepon Ayah', 'Telepon Ortu', 'Telepon', 'nohpayah') || '08123456789';
 
     const namaIbu = getVal('Nama Ibu', 'Nama Ibu Kandung', 'Ibu Kandung', 'Ibu', 'namaibu');
     const pendidikanIbu = getVal('Pendidikan Ibu', 'Pendidikan Ibu Kandung', 'pendidikanibu') || 'SMA';
     const pekerjaanIbu = getVal('Pekerjaan Ibu', 'Pekerjaan Ibu Kandung', 'Kerja Ibu', 'pekerjaanibu') || 'Ibu Rumah Tangga';
-    const penghasilanIbu = getVal('Penghasilan Ibu', 'Penghasilan Ibu Kandung', 'Gaji Ibu', 'penghasilanibu') || 'Tidak Berpenghasilan';
+    const penghasilanIbu = normalizeIncomeString(getVal('Penghasilan Ibu', 'Penghasilan Ibu Kandung', 'Gaji Ibu', 'penghasilanibu') || 'Tidak Berpenghasilan');
     const noHpIbu = getVal('No HP Ibu', 'No HP Ibu Kandung', 'nohpibu') || noHpAyah || '08123456789';
 
     const dataAyah = {

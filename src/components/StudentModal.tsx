@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, User, Upload, Trash2, Camera } from 'lucide-react';
 import { Student, Gender, Religion, StudentStatus } from '../types';
 import { useSchool } from '../context/SchoolContext';
+import { normalizeIncomeString } from '../utils/excelHelper';
 
 interface StudentModalProps {
   isOpen: boolean;
@@ -151,14 +152,14 @@ export const StudentModal: React.FC<StudentModalProps> = ({
         nama: formData.ayahNama,
         pendidikan: formData.ayahPendidikan,
         pekerjaan: formData.ayahPekerjaan,
-        penghasilan: formData.ayahPenghasilan,
+        penghasilan: normalizeIncomeString(formData.ayahPenghasilan),
         noHp: formData.ayahHp,
       },
       dataIbu: {
         nama: formData.ibuNama,
         pendidikan: formData.ibuPendidikan,
         pekerjaan: formData.ibuPekerjaan,
-        penghasilan: formData.ibuPenghasilan,
+        penghasilan: normalizeIncomeString(formData.ibuPenghasilan),
         noHp: formData.ibuHp,
       },
       nilaiSemester: studentToEdit?.nilaiSemester || {},

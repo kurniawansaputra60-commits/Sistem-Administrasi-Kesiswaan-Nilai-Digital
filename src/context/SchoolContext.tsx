@@ -561,6 +561,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       return next;
     });
+    // Immediately trigger forceSyncToCloud
+    setTimeout(() => {
+      forceSyncToCloud().catch(err => console.warn('Sync profile error:', err));
+    }, 50);
   };
 
   const addStudent = (studentData: Omit<Student, 'id'>): string => {

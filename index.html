@@ -13,25 +13,42 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script>
-      // Suppress Vite HMR WebSocket disconnect errors caused by preview iframe proxy
-      window.addEventListener('unhandledrejection', function(event) {
-        if (event && event.reason) {
-          var msg = String(event.reason.message || event.reason || '');
+      (function() {
+        var origError = console.error;
+        var origWarn = console.warn;
+        console.error = function() {
+          var msg = arguments[0] ? String(arguments[0]) : '';
           if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('websocket') !== -1 || msg.indexOf('@vite/client') !== -1) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
+            return;
           }
-        }
-      });
-      window.addEventListener('error', function(event) {
-        if (event && event.message) {
-          var msg = String(event.message || '');
+          origError.apply(console, arguments);
+        };
+        console.warn = function() {
+          var msg = arguments[0] ? String(arguments[0]) : '';
           if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('websocket') !== -1 || msg.indexOf('@vite/client') !== -1) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
+            return;
           }
-        }
-      });
+          origWarn.apply(console, arguments);
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+          if (event && event.reason) {
+            var reasonMsg = String(event.reason.message || event.reason || '');
+            if (reasonMsg.indexOf('WebSocket') !== -1 || reasonMsg.indexOf('websocket') !== -1 || reasonMsg.indexOf('@vite/client') !== -1) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            }
+          }
+        }, true);
+        window.addEventListener('error', function(event) {
+          if (event && event.message) {
+            var errMsg = String(event.message || '');
+            if (errMsg.indexOf('WebSocket') !== -1 || errMsg.indexOf('websocket') !== -1 || errMsg.indexOf('@vite/client') !== -1) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            }
+          }
+        }, true);
+      })();
     </script>
   </head>
   <body>

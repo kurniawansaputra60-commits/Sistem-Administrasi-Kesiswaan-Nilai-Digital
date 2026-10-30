@@ -4,7 +4,7 @@ import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
 import { Student } from '../../types';
 import { Search, Printer, Edit, BookOpen, ShieldCheck, UserCheck } from 'lucide-react';
-import { isKelasMatch } from '../../utils/classUtils';
+import { isKelasMatch, formatIndonesianDate } from '../../utils/classUtils';
 
 interface FormatS4Props {
   onEditStudent: (student: Student) => void;
@@ -343,7 +343,7 @@ export const FormatS4_MasterBook: React.FC<FormatS4Props> = ({ onEditStudent }) 
                       <tr className="border-b border-slate-200">
                         <td className="py-1.5 font-medium">2. Tanggal Diterima di Sekolah Ini</td>
                         <td className="py-1.5">:</td>
-                        <td className="py-1.5 font-mono">{currentStudent.tanggalDiterima} (Kelas {currentStudent.diterimaDiKelas})</td>
+                        <td className="py-1.5 font-semibold">{formatIndonesianDate(currentStudent.tanggalDiterima)} (Kelas {currentStudent.diterimaDiKelas})</td>
                       </tr>
                       <tr className="border-b border-slate-200">
                         <td className="py-1.5 font-medium">3. Status Kenaikan / Kelulusan Terakhir</td>
