@@ -323,7 +323,7 @@ export interface WaliKelasItem {
   kelas: string; // 'I', 'II', 'III', 'IV', 'V', 'VI'
   rombel: string; // 'A', 'B', etc.
   nama: string;
-  nip: string;
+  nip?: string;
   nik?: string; // NIK 16 digit untuk Non-ASN / Honorer
   ttdUrl?: string; // Data URL / Base64 image tanda tangan digital
 }

@@ -112,7 +112,7 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({ isOpen
 
     // Update fallback wali kelas utama jika Kelas I A diubah
     const wk1a = list.find(w => w.kelas === 'I' && w.rombel === 'A');
-    const updateMain = wk1a ? { namaWaliKelas: wk1a.nama, nipWaliKelas: wk1a.nip } : {};
+    const updateMain = wk1a ? { namaWaliKelas: wk1a.nama, nipWaliKelas: wk1a.nip || '' } : {};
 
     setProfileForm({
       ...profileForm,

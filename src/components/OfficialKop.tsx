@@ -202,7 +202,7 @@ export const OfficialSignature: React.FC<OfficialSignatureProps> = ({
 
     if (wk) {
       detectedWaliNama = wk.nama;
-      detectedWaliNip = wk.nip;
+      detectedWaliNip = wk.nip || (wk.nik ? `NIK. ${wk.nik}` : '') || '';
       detectedWaliTtd = wk.ttdUrl;
     }
   }
