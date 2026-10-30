@@ -14,18 +14,36 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script>
       (function() {
+        var OrigWS = window.WebSocket;
+        if (OrigWS) {
+          window.WebSocket = function(url, protocols) {
+            var ws = protocols ? new OrigWS(url, protocols) : new OrigWS(url);
+            ws.addEventListener('error', function(e) {
+              if (e && e.stopImmediatePropagation) {
+                e.stopImmediatePropagation();
+              }
+            }, true);
+            return ws;
+          };
+          window.WebSocket.prototype = OrigWS.prototype;
+          window.WebSocket.CONNECTING = OrigWS.CONNECTING;
+          window.WebSocket.OPEN = OrigWS.OPEN;
+          window.WebSocket.CLOSING = OrigWS.CLOSING;
+          window.WebSocket.CLOSED = OrigWS.CLOSED;
+        }
+
         var origError = console.error;
         var origWarn = console.warn;
         console.error = function() {
           var msg = arguments[0] ? String(arguments[0]) : '';
-          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('websocket') !== -1 || msg.indexOf('@vite/client') !== -1) {
+          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('websocket') !== -1 || msg.indexOf('@vite/client') !== -1 || msg.indexOf('failed to connect') !== -1) {
             return;
           }
           origError.apply(console, arguments);
         };
         console.warn = function() {
           var msg = arguments[0] ? String(arguments[0]) : '';
-          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('websocket') !== -1 || msg.indexOf('@vite/client') !== -1) {
+          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('websocket') !== -1 || msg.indexOf('@vite/client') !== -1 || msg.indexOf('failed to connect') !== -1) {
             return;
           }
           origWarn.apply(console, arguments);
@@ -33,7 +51,7 @@
         window.addEventListener('unhandledrejection', function(event) {
           if (event && event.reason) {
             var reasonMsg = String(event.reason.message || event.reason || '');
-            if (reasonMsg.indexOf('WebSocket') !== -1 || reasonMsg.indexOf('websocket') !== -1 || reasonMsg.indexOf('@vite/client') !== -1) {
+            if (reasonMsg.indexOf('WebSocket') !== -1 || reasonMsg.indexOf('websocket') !== -1 || reasonMsg.indexOf('@vite/client') !== -1 || reasonMsg.indexOf('failed to connect') !== -1) {
               event.preventDefault();
               event.stopImmediatePropagation();
             }
@@ -42,7 +60,7 @@
         window.addEventListener('error', function(event) {
           if (event && event.message) {
             var errMsg = String(event.message || '');
-            if (errMsg.indexOf('WebSocket') !== -1 || errMsg.indexOf('websocket') !== -1 || errMsg.indexOf('@vite/client') !== -1) {
+            if (errMsg.indexOf('WebSocket') !== -1 || errMsg.indexOf('websocket') !== -1 || errMsg.indexOf('@vite/client') !== -1 || errMsg.indexOf('failed to connect') !== -1) {
               event.preventDefault();
               event.stopImmediatePropagation();
             }

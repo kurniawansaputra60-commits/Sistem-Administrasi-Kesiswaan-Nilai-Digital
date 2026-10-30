@@ -181,7 +181,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         : '/assets/aistudio/llogo_06ce9f11.png';
 
       // Pertahankan secara utuh data waliKelasList yang telah diatur oleh pengguna
-      const validWaliList = Array.isArray(parsed.waliKelasList) && parsed.waliKelasList.length > 0
+      const validWaliList = Array.isArray(parsed.waliKelasList)
         ? parsed.waliKelasList
         : initialSchoolProfile.waliKelasList;
 
@@ -325,6 +325,37 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
+  // Critical refs to avoid stale closure state during async cloud sync
+  const schoolProfileRef = useRef<SchoolProfile>(schoolProfile);
+  const studentsRef = useRef<Student[]>(students);
+  const attendancesRef = useRef<DailyAttendanceRecord[]>(attendances);
+  const warningLettersRef = useRef<AbsenceWarningLetter[]>(warningLetters);
+  const transferRequestsRef = useRef<TransferRequestLetter[]>(transferRequests);
+  const transferOutsRef = useRef<TransferOutCertificate[]>(transferOuts);
+  const transferInsRef = useRef<TransferInConfirmation[]>(transferIns);
+  const mutationsRef = useRef<StudentMutationRecord[]>(mutations);
+  const examCandidatesRef = useRef<ExamCandidate[]>(examCandidates);
+  const examSessionsRef = useRef<ExamSession[]>(examSessions);
+  const examScoresRef = useRef<ExamScoreRecord[]>(examScores);
+  const gradStudiesRef = useRef<GraduateStudyRecord[]>(gradStudies);
+  const achievementsRef = useRef<AchievementRecord[]>(achievements);
+  const curriculumTargetsRef = useRef<CurriculumTargetRecord[]>(curriculumTargets);
+
+  useEffect(() => { schoolProfileRef.current = schoolProfile; }, [schoolProfile]);
+  useEffect(() => { studentsRef.current = students; }, [students]);
+  useEffect(() => { attendancesRef.current = attendances; }, [attendances]);
+  useEffect(() => { warningLettersRef.current = warningLetters; }, [warningLetters]);
+  useEffect(() => { transferRequestsRef.current = transferRequests; }, [transferRequests]);
+  useEffect(() => { transferOutsRef.current = transferOuts; }, [transferOuts]);
+  useEffect(() => { transferInsRef.current = transferIns; }, [transferIns]);
+  useEffect(() => { mutationsRef.current = mutations; }, [mutations]);
+  useEffect(() => { examCandidatesRef.current = examCandidates; }, [examCandidates]);
+  useEffect(() => { examSessionsRef.current = examSessions; }, [examSessions]);
+  useEffect(() => { examScoresRef.current = examScores; }, [examScores]);
+  useEffect(() => { gradStudiesRef.current = gradStudies; }, [gradStudies]);
+  useEffect(() => { achievementsRef.current = achievements; }, [achievements]);
+  useEffect(() => { curriculumTargetsRef.current = curriculumTargets; }, [curriculumTargets]);
+
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'initial_loading' | 'synced' | 'syncing' | 'error'>('initial_loading');
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
@@ -343,26 +374,29 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           isRemoteUpdateRef.current = true;
 
           if (data.schoolProfile) {
-            setSchoolProfile(prev => ({
-              ...prev,
-              ...data.schoolProfile,
-              // Pastikan logo tetap valid jika kosong
-              logoSekolahUrl: data.schoolProfile.logoSekolahUrl || prev.logoSekolahUrl,
-            }));
+            setSchoolProfile(prev => {
+              const merged = {
+                ...prev,
+                ...data.schoolProfile,
+                logoSekolahUrl: data.schoolProfile.logoSekolahUrl || prev.logoSekolahUrl,
+              };
+              schoolProfileRef.current = merged;
+              return merged;
+            });
           }
-          if (Array.isArray(data.students)) setStudents(data.students);
-          if (Array.isArray(data.attendances)) setAttendances(data.attendances);
-          if (Array.isArray(data.warningLetters)) setWarningLetters(data.warningLetters);
-          if (Array.isArray(data.transferRequests)) setTransferRequests(data.transferRequests);
-          if (Array.isArray(data.transferOuts)) setTransferOuts(data.transferOuts);
-          if (Array.isArray(data.transferIns)) setTransferIns(data.transferIns);
-          if (Array.isArray(data.mutations)) setMutations(data.mutations);
-          if (Array.isArray(data.examCandidates)) setExamCandidates(data.examCandidates);
-          if (Array.isArray(data.examSessions)) setExamSessions(data.examSessions);
-          if (Array.isArray(data.examScores)) setExamScores(data.examScores);
-          if (Array.isArray(data.gradStudies)) setGradStudies(data.gradStudies);
-          if (Array.isArray(data.achievements)) setAchievements(data.achievements);
-          if (Array.isArray(data.curriculumTargets)) setCurriculumTargets(data.curriculumTargets);
+          if (Array.isArray(data.students)) { setStudents(data.students); studentsRef.current = data.students; }
+          if (Array.isArray(data.attendances)) { setAttendances(data.attendances); attendancesRef.current = data.attendances; }
+          if (Array.isArray(data.warningLetters)) { setWarningLetters(data.warningLetters); warningLettersRef.current = data.warningLetters; }
+          if (Array.isArray(data.transferRequests)) { setTransferRequests(data.transferRequests); transferRequestsRef.current = data.transferRequests; }
+          if (Array.isArray(data.transferOuts)) { setTransferOuts(data.transferOuts); transferOutsRef.current = data.transferOuts; }
+          if (Array.isArray(data.transferIns)) { setTransferIns(data.transferIns); transferInsRef.current = data.transferIns; }
+          if (Array.isArray(data.mutations)) { setMutations(data.mutations); mutationsRef.current = data.mutations; }
+          if (Array.isArray(data.examCandidates)) { setExamCandidates(data.examCandidates); examCandidatesRef.current = data.examCandidates; }
+          if (Array.isArray(data.examSessions)) { setExamSessions(data.examSessions); examSessionsRef.current = data.examSessions; }
+          if (Array.isArray(data.examScores)) { setExamScores(data.examScores); examScoresRef.current = data.examScores; }
+          if (Array.isArray(data.gradStudies)) { setGradStudies(data.gradStudies); gradStudiesRef.current = data.gradStudies; }
+          if (Array.isArray(data.achievements)) { setAchievements(data.achievements); achievementsRef.current = data.achievements; }
+          if (Array.isArray(data.curriculumTargets)) { setCurriculumTargets(data.curriculumTargets); curriculumTargetsRef.current = data.curriculumTargets; }
 
           // Update local storage backup
           try {
@@ -446,20 +480,20 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     writeTimeoutRef.current = setTimeout(async () => {
       try {
         const payload = cleanFirestoreData({
-          schoolProfile,
-          students,
-          attendances,
-          warningLetters,
-          transferRequests,
-          transferOuts,
-          transferIns,
-          mutations,
-          examCandidates,
-          examSessions,
-          examScores,
-          gradStudies,
-          achievements,
-          curriculumTargets,
+          schoolProfile: schoolProfileRef.current,
+          students: studentsRef.current,
+          attendances: attendancesRef.current,
+          warningLetters: warningLettersRef.current,
+          transferRequests: transferRequestsRef.current,
+          transferOuts: transferOutsRef.current,
+          transferIns: transferInsRef.current,
+          mutations: mutationsRef.current,
+          examCandidates: examCandidatesRef.current,
+          examSessions: examSessionsRef.current,
+          examScores: examScoresRef.current,
+          gradStudies: gradStudiesRef.current,
+          achievements: achievementsRef.current,
+          curriculumTargets: curriculumTargetsRef.current,
           updatedAt: new Date().toISOString(),
         });
 
@@ -479,20 +513,20 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          schoolProfile,
-          students,
-          attendances,
-          warningLetters,
-          transferRequests,
-          transferOuts,
-          transferIns,
-          mutations,
-          examCandidates,
-          examSessions,
-          examScores,
-          gradStudies,
-          achievements,
-          curriculumTargets,
+          schoolProfile: schoolProfileRef.current,
+          students: studentsRef.current,
+          attendances: attendancesRef.current,
+          warningLetters: warningLettersRef.current,
+          transferRequests: transferRequestsRef.current,
+          transferOuts: transferOutsRef.current,
+          transferIns: transferInsRef.current,
+          mutations: mutationsRef.current,
+          examCandidates: examCandidatesRef.current,
+          examSessions: examSessionsRef.current,
+          examScores: examScoresRef.current,
+          gradStudies: gradStudiesRef.current,
+          achievements: achievementsRef.current,
+          curriculumTargets: curriculumTargetsRef.current,
         }),
       }).catch(() => {});
     } catch {}
@@ -520,24 +554,24 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     mysqlConfig,
   ]);
 
-  const forceSyncToCloud = async (): Promise<boolean> => {
+  const forceSyncToCloud = async (customPayload?: Record<string, any>): Promise<boolean> => {
     try {
       setCloudSyncStatus('syncing');
       const payload = cleanFirestoreData({
-        schoolProfile,
-        students,
-        attendances,
-        warningLetters,
-        transferRequests,
-        transferOuts,
-        transferIns,
-        mutations,
-        examCandidates,
-        examSessions,
-        examScores,
-        gradStudies,
-        achievements,
-        curriculumTargets,
+        schoolProfile: customPayload?.schoolProfile || schoolProfileRef.current,
+        students: customPayload?.students || studentsRef.current,
+        attendances: customPayload?.attendances || attendancesRef.current,
+        warningLetters: customPayload?.warningLetters || warningLettersRef.current,
+        transferRequests: customPayload?.transferRequests || transferRequestsRef.current,
+        transferOuts: customPayload?.transferOuts || transferOutsRef.current,
+        transferIns: customPayload?.transferIns || transferInsRef.current,
+        mutations: customPayload?.mutations || mutationsRef.current,
+        examCandidates: customPayload?.examCandidates || examCandidatesRef.current,
+        examSessions: customPayload?.examSessions || examSessionsRef.current,
+        examScores: customPayload?.examScores || examScoresRef.current,
+        gradStudies: customPayload?.gradStudies || gradStudiesRef.current,
+        achievements: customPayload?.achievements || achievementsRef.current,
+        curriculumTargets: customPayload?.curriculumTargets || curriculumTargetsRef.current,
         updatedAt: new Date().toISOString(),
       });
       await setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
@@ -552,19 +586,20 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateSchoolProfile = (updates: Partial<SchoolProfile>) => {
+    let nextProfile: SchoolProfile = { ...schoolProfileRef.current, ...updates };
+    schoolProfileRef.current = nextProfile;
     setSchoolProfile(prev => {
-      const next = { ...prev, ...updates };
+      const merged = { ...prev, ...updates };
+      schoolProfileRef.current = merged;
       try {
-        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(next));
+        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(merged));
       } catch (err) {
         console.error('Error saving updated schoolProfile to localStorage:', err);
       }
-      return next;
+      return merged;
     });
-    // Immediately trigger forceSyncToCloud
-    setTimeout(() => {
-      forceSyncToCloud().catch(err => console.warn('Sync profile error:', err));
-    }, 50);
+
+    forceSyncToCloud({ schoolProfile: nextProfile }).catch(err => console.warn('Sync profile error:', err));
   };
 
   const addStudent = (studentData: Omit<Student, 'id'>): string => {
