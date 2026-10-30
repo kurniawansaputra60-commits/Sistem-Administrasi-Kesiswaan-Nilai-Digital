@@ -283,13 +283,18 @@ export const FormatS4_MasterBook: React.FC<FormatS4Props> = ({ onEditStudent }) 
                         <td className="py-1.5 font-medium">3. Kota / Kabupaten</td>
                         <td className="py-1.5">:</td>
                         <td className="py-1.5">
-                          {currentStudent.kabupatenKota && currentStudent.provinsi
-                            ? `${currentStudent.kabupatenKota.replace(/,\s*DKI\s*Jakarta/gi, '')}, ${currentStudent.provinsi.replace(/DKI\s*Jakarta/gi, 'BANTEN')}`
-                            : 'LEBAK, BANTEN'}
+                          {currentStudent.kabupatenKota || 'KABUPATEN LEBAK'}
                         </td>
                       </tr>
                       <tr className="border-b border-slate-200">
-                        <td className="py-1.5 font-medium">4. Nomor HP / Telepon</td>
+                        <td className="py-1.5 font-medium">4. Provinsi</td>
+                        <td className="py-1.5">:</td>
+                        <td className="py-1.5 font-semibold">
+                          {currentStudent.provinsi || 'BANTEN'}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-slate-200">
+                        <td className="py-1.5 font-medium">5. Nomor HP / Telepon</td>
                         <td className="py-1.5">:</td>
                         <td className="py-1.5 font-mono">{currentStudent.noHp || '-'}</td>
                       </tr>

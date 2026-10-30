@@ -146,12 +146,11 @@ function MainApp() {
   };
 
   const handleSelectTab = (tab: NavItemKey) => {
+    setActiveTab(tab);
     if (tab === 'school-settings') {
       if (userProfile?.role === 'admin') {
         setIsSettingsModalOpen(true);
       }
-    } else {
-      setActiveTab(tab);
     }
   };
 
@@ -175,6 +174,31 @@ function MainApp() {
               onNavigate={handleSelectTab}
               onOpenAddStudent={handleOpenAddStudent}
             />
+          )}
+
+          {/* Pengaturan Kop & Wali Kelas */}
+          {activeTab === 'school-settings' && (
+            <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto text-3xl font-bold shadow-inner">
+                  ⚙️
+                </div>
+                <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                  Pengaturan Kop Surat, Wali Kelas &amp; Profil Sekolah
+                </h2>
+                <p className="text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
+                  Kelola kop surat dinas resmi, unggah logo sekolah dan logo daerah, tentukan pembagian rombel binaan seluruh Wali Kelas (Kelas I s/d VI), serta kelola arsip cadangan sistem.
+                </p>
+                <div className="pt-2">
+                  <button
+                    onClick={() => setIsSettingsModalOpen(true)}
+                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2 mx-auto active:scale-95"
+                  >
+                    <span>Buka Panel Pengaturan Kop &amp; Wali Kelas</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Excel Import/Export Center */}

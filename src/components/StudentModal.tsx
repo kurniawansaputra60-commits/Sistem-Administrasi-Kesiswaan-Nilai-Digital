@@ -502,6 +502,16 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                   className="w-full px-3 py-2 border border-slate-300 rounded-md"
                 />
               </div>
+              <div>
+                <label className="block font-semibold mb-1">Provinsi *</label>
+                <input
+                  type="text"
+                  value={formData.provinsi}
+                  onChange={e => setFormData({ ...formData, provinsi: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  placeholder="Banten"
+                />
+              </div>
             </div>
           </section>
 
@@ -551,6 +561,21 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                       className="w-full px-2 py-1.5 border border-slate-300 rounded-md bg-white text-xs"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block font-medium mb-1">Penghasilan Ayah</label>
+                  <select
+                    value={formData.ayahPenghasilan}
+                    onChange={e => setFormData({ ...formData, ayahPenghasilan: e.target.value })}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-md bg-white text-xs"
+                  >
+                    <option value="Tidak Berpenghasilan">Tidak Berpenghasilan</option>
+                    <option value="Kurang dari 1.000.000">Kurang dari 1.000.000</option>
+                    <option value="1.000.000 - 3.000.000">1.000.000 - 3.000.000</option>
+                    <option value="3.000.000 - 5.000.000">3.000.000 - 5.000.000</option>
+                    <option value="5.000.000 - 10.000.000">5.000.000 - 10.000.000</option>
+                    <option value="Lebih dari 10.000.000">Lebih dari 10.000.000</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block font-medium mb-1">No. Kontak / HP Ayah</label>
@@ -604,6 +629,21 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                       className="w-full px-2 py-1.5 border border-slate-300 rounded-md bg-white text-xs"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block font-medium mb-1">Penghasilan Ibu</label>
+                  <select
+                    value={formData.ibuPenghasilan}
+                    onChange={e => setFormData({ ...formData, ibuPenghasilan: e.target.value })}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-md bg-white text-xs"
+                  >
+                    <option value="Tidak Berpenghasilan">Tidak Berpenghasilan</option>
+                    <option value="Kurang dari 1.000.000">Kurang dari 1.000.000</option>
+                    <option value="1.000.000 - 3.000.000">1.000.000 - 3.000.000</option>
+                    <option value="3.000.000 - 5.000.000">3.000.000 - 5.000.000</option>
+                    <option value="5.000.000 - 10.000.000">5.000.000 - 10.000.000</option>
+                    <option value="Lebih dari 10.000.000">Lebih dari 10.000.000</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block font-medium mb-1">No. Kontak / HP Ibu</label>

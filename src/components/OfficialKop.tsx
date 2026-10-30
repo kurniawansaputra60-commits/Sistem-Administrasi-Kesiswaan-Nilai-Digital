@@ -6,8 +6,8 @@ import { generateDigitalSignatureSvg } from '../utils/signatureUtils';
 
 export interface OfficialKopProps {
   formatCode?: string;
-  formatTitle?: string;
-  title?: string;
+  formatTitle?: React.ReactNode;
+  title?: React.ReactNode;
   subTitle?: string;
   subtitle?: string;
   kelas?: string;
@@ -24,7 +24,7 @@ export const OfficialKop: React.FC<OfficialKopProps> = ({
   kelas,
 }) => {
   const { schoolProfile } = useSchool();
-  const displayTitle = formatTitle || title || 'DOKUMEN KESISWAAN RESMI';
+  const displayTitle = formatTitle !== undefined ? formatTitle : (title !== undefined ? title : 'DOKUMEN KESISWAAN RESMI');
   const displaySubtitle = subTitle || subtitle || `TAHUN AJARAN ${schoolProfile.tahunAjaranAktif} · SEMESTER ${schoolProfile.semesterAktif === '1' ? 'GANJIL' : 'GENAP'}`;
 
   // Cek apakah menggunakan banner kop resmi bergambar (seperti di KOP_SURAT_NEW_e0e5ed69.png)
@@ -122,7 +122,7 @@ export const OfficialKop: React.FC<OfficialKopProps> = ({
 
       {/* Document Title Header */}
       <div className="text-center my-4">
-        <h2 className="text-sm sm:text-base font-extrabold text-slate-950 tracking-wider uppercase">
+        <h2 className="text-sm sm:text-base font-extrabold text-slate-950 tracking-wider uppercase whitespace-pre-line">
           {displayTitle}
         </h2>
         {kelas && (

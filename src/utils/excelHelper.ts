@@ -14,10 +14,13 @@ export interface ExcelImportRow {
   rombel?: string;
   statusSiswa: StudentStatus;
   asalSekolah: string;
+  anakKe?: number;
+  jumlahSaudara?: number;
   alamat: string;
   kelurahan?: string;
   kecamatan?: string;
   kabupatenKota?: string;
+  provinsi?: string;
   namaAyah?: string;
   pendidikanAyah?: string;
   pekerjaanAyah?: string;
@@ -58,17 +61,20 @@ export function downloadStudentExcelTemplate(schoolName: string = 'SD NEGERI PER
       'Nama Lengkap': 'Ahmad Fauzi Rahman',
       'Nama Panggilan': 'Fauzi',
       'Jenis Kelamin (L/P)': 'L',
-      'Tempat Lahir': 'Jakarta',
+      'Tempat Lahir': 'Lebak',
       'Tanggal Lahir (YYYY-MM-DD)': '2018-05-14',
       'Agama': 'Islam',
+      'Anak Ke-': 1,
+      'Jumlah Saudara': 2,
       'Kelas': '1',
       'Rombel (A/B)': 'A',
       'Status Siswa': 'aktif',
       'Asal Sekolah': 'TK Pertiwi 01',
-      'Alamat Jalan': 'Jl. Cempaka Putih Tengah No. 12',
-      'Kelurahan': 'Cempaka Putih Timur',
-      'Kecamatan': 'Cempaka Putih',
-      'Kota / Kabupaten': 'Jakarta Pusat',
+      'Alamat Jalan': 'Jl. Cempaka Putih No. 12 RT 03/RW 02',
+      'Kelurahan': 'Cempaka',
+      'Kecamatan': 'Warunggunung',
+      'Kota / Kabupaten': 'Kabupaten Lebak',
+      'Provinsi': 'Banten',
       'Nama Ayah': 'Rahmat Hidayat',
       'Pendidikan Ayah': 'S1 / Sarjana',
       'Pekerjaan Ayah': 'Karyawan Swasta',
@@ -86,17 +92,20 @@ export function downloadStudentExcelTemplate(schoolName: string = 'SD NEGERI PER
       'Nama Lengkap': 'Anisa Rahmawati',
       'Nama Panggilan': 'Anisa',
       'Jenis Kelamin (L/P)': 'P',
-      'Tempat Lahir': 'Jakarta',
+      'Tempat Lahir': 'Lebak',
       'Tanggal Lahir (YYYY-MM-DD)': '2018-03-22',
       'Agama': 'Islam',
+      'Anak Ke-': 2,
+      'Jumlah Saudara': 1,
       'Kelas': '1',
       'Rombel (A/B)': 'A',
       'Status Siswa': 'aktif',
       'Asal Sekolah': 'PAUD Melati 03',
       'Alamat Jalan': 'Jl. Rawasari Selatan No. 8',
-      'Kelurahan': 'Rawasari',
-      'Kecamatan': 'Cempaka Putih',
-      'Kota / Kabupaten': 'Jakarta Pusat',
+      'Kelurahan': 'Cempaka',
+      'Kecamatan': 'Warunggunung',
+      'Kota / Kabupaten': 'Kabupaten Lebak',
+      'Provinsi': 'Banten',
       'Nama Ayah': 'Budi Rahmadi',
       'Pendidikan Ayah': 'D3 / Diploma',
       'Pekerjaan Ayah': 'Wiraswasta',
@@ -114,17 +123,20 @@ export function downloadStudentExcelTemplate(schoolName: string = 'SD NEGERI PER
       'Nama Lengkap': 'Bima Sakti Pratama',
       'Nama Panggilan': 'Bima',
       'Jenis Kelamin (L/P)': 'L',
-      'Tempat Lahir': 'Bandung',
+      'Tempat Lahir': 'Rangkasbitung',
       'Tanggal Lahir (YYYY-MM-DD)': '2018-08-20',
       'Agama': 'Islam',
+      'Anak Ke-': 1,
+      'Jumlah Saudara': 3,
       'Kelas': '1',
       'Rombel (A/B)': 'B',
       'Status Siswa': 'aktif',
       'Asal Sekolah': 'TK Kartika V-1',
       'Alamat Jalan': 'Jl. Percetakan Negara IX No. 4',
-      'Kelurahan': 'Johar Baru',
-      'Kecamatan': 'Johar Baru',
-      'Kota / Kabupaten': 'Jakarta Pusat',
+      'Kelurahan': 'Cempaka',
+      'Kecamatan': 'Warunggunung',
+      'Kota / Kabupaten': 'Kabupaten Lebak',
+      'Provinsi': 'Banten',
       'Nama Ayah': 'Hendra Pratama',
       'Pendidikan Ayah': 'SMA / Sederajat',
       'Pekerjaan Ayah': 'Wiraswasta',
@@ -142,17 +154,20 @@ export function downloadStudentExcelTemplate(schoolName: string = 'SD NEGERI PER
       'Nama Lengkap': 'Citra Lestari',
       'Nama Panggilan': 'Citra',
       'Jenis Kelamin (L/P)': 'P',
-      'Tempat Lahir': 'Surakarta',
+      'Tempat Lahir': 'Serang',
       'Tanggal Lahir (YYYY-MM-DD)': '2018-11-05',
       'Agama': 'Islam',
+      'Anak Ke-': 3,
+      'Jumlah Saudara': 2,
       'Kelas': '1',
       'Rombel (A/B)': 'B',
       'Status Siswa': 'aktif',
       'Asal Sekolah': 'TK Islam Al-Azhar',
-      'Alamat Jalan': 'Jl. Salemba Raya No. 45',
-      'Kelurahan': 'Kramat',
-      'Kecamatan': 'Senen',
-      'Kota / Kabupaten': 'Jakarta Pusat',
+      'Alamat Jalan': 'Jl. Sudirman No. 45',
+      'Kelurahan': 'Cempaka',
+      'Kecamatan': 'Warunggunung',
+      'Kota / Kabupaten': 'Kabupaten Lebak',
+      'Provinsi': 'Banten',
       'Nama Ayah': 'Surya Lestari',
       'Pendidikan Ayah': 'S1 / Sarjana',
       'Pekerjaan Ayah': 'PNS / ASN',
@@ -172,13 +187,18 @@ export function downloadStudentExcelTemplate(schoolName: string = 'SD NEGERI PER
     { 'KOLOM': 'Jenis Kelamin (L/P)', 'DESKRIPSI': 'Isi L untuk Laki-laki atau P untuk Perempuan', 'CONTOH': 'L atau P' },
     { 'KOLOM': 'Tanggal Lahir', 'DESKRIPSI': 'Format tanggal: YYYY-MM-DD (Tahun-Bulan-Hari)', 'CONTOH': '2018-05-14' },
     { 'KOLOM': 'Agama', 'DESKRIPSI': 'Islam, Kristen, Katolik, Hindu, Buddha, Khonghucu', 'CONTOH': 'Islam' },
+    { 'KOLOM': 'Anak Ke-', 'DESKRIPSI': 'Urutan anak dalam keluarga', 'CONTOH': '1' },
+    { 'KOLOM': 'Jumlah Saudara', 'DESKRIPSI': 'Jumlah saudara kandung siswa', 'CONTOH': '2' },
     { 'KOLOM': 'Kelas', 'DESKRIPSI': 'Tingkat kelas angka: 1, 2, 3, 4, 5, atau 6', 'CONTOH': '1' },
     { 'KOLOM': 'Rombel (A/B)', 'DESKRIPSI': 'Pilih A atau B untuk pembagian Rombongan Belajar', 'CONTOH': 'A atau B' },
+    { 'KOLOM': 'Provinsi', 'DESKRIPSI': 'Provinsi tempat tinggal siswa', 'CONTOH': 'Banten' },
     { 'KOLOM': 'Nama Ayah', 'DESKRIPSI': 'Nama lengkap ayah kandung/wali', 'CONTOH': 'Rahmat Hidayat' },
     { 'KOLOM': 'Pendidikan Ayah', 'DESKRIPSI': 'Pendidikan terakhir Ayah', 'CONTOH': 'SMA / S1' },
     { 'KOLOM': 'Pekerjaan Ayah', 'DESKRIPSI': 'Pekerjaan atau instansi ayah', 'CONTOH': 'Karyawan Swasta' },
+    { 'KOLOM': 'Penghasilan Ayah', 'DESKRIPSI': 'Kisaran penghasilan bulanan ayah', 'CONTOH': '3.000.000 - 5.000.000' },
     { 'KOLOM': 'Nama Ibu', 'DESKRIPSI': 'Nama lengkap ibu kandung', 'CONTOH': 'Nurul Aini' },
     { 'KOLOM': 'Pekerjaan Ibu', 'DESKRIPSI': 'Pekerjaan ibu', 'CONTOH': 'Ibu Rumah Tangga' },
+    { 'KOLOM': 'Penghasilan Ibu', 'DESKRIPSI': 'Kisaran penghasilan bulanan ibu', 'CONTOH': 'Tidak Berpenghasilan' },
   ];
 
   const wb = XLSX.utils.book_new();
@@ -194,6 +214,8 @@ export function downloadStudentExcelTemplate(schoolName: string = 'SD NEGERI PER
     { wch: 16 }, // Tempat Lahir
     { wch: 22 }, // Tgl Lahir
     { wch: 12 }, // Agama
+    { wch: 10 }, // Anak Ke
+    { wch: 14 }, // Jml Saudara
     { wch: 10 }, // Kelas
     { wch: 12 }, // Rombel
     { wch: 14 }, // Status
@@ -202,15 +224,16 @@ export function downloadStudentExcelTemplate(schoolName: string = 'SD NEGERI PER
     { wch: 20 }, // Kelurahan
     { wch: 20 }, // Kecamatan
     { wch: 20 }, // Kota
+    { wch: 18 }, // Provinsi
     { wch: 22 }, // Nama Ayah
     { wch: 18 }, // Pendidikan Ayah
     { wch: 18 }, // Pekerjaan Ayah
-    { wch: 20 }, // Penghasilan Ayah
+    { wch: 22 }, // Penghasilan Ayah
     { wch: 16 }, // No HP
     { wch: 22 }, // Nama Ibu
     { wch: 18 }, // Pendidikan Ibu
     { wch: 18 }, // Pekerjaan Ibu
-    { wch: 20 }, // Penghasilan Ibu
+    { wch: 22 }, // Penghasilan Ibu
   ];
   XLSX.utils.book_append_sheet(wb, wsData, 'DATA_SISWA');
 
@@ -271,7 +294,7 @@ export async function parseStudentExcelFile(file: File): Promise<ExcelImportRow[
     const rawJK = getVal('Jenis Kelamin (L/P)', 'Jenis Kelamin', 'JK', 'Gender', 'jeniskelamin').toUpperCase();
     const jenisKelamin: Gender = rawJK.startsWith('P') || rawJK.startsWith('W') ? 'P' : 'L';
 
-    const tempatLahir = getVal('Tempat Lahir', 'TempatLahir', 'tempatlahir') || 'Jakarta';
+    const tempatLahir = getVal('Tempat Lahir', 'TempatLahir', 'tempatlahir') || 'Lebak';
     let tanggalLahir = getVal('Tanggal Lahir (YYYY-MM-DD)', 'Tanggal Lahir', 'Tgl Lahir', 'tanggallahir');
     
     if (tanggalLahir && !isNaN(Number(tanggalLahir)) && Number(tanggalLahir) > 20000) {
@@ -288,6 +311,9 @@ export async function parseStudentExcelFile(file: File): Promise<ExcelImportRow[
     if (['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Khonghucu'].includes(rawAgama)) {
       agama = rawAgama as Religion;
     }
+
+    const anakKe = Number(getVal('Anak Ke-', 'Anak Ke', 'anakke')) || 1;
+    const jumlahSaudara = Number(getVal('Jumlah Saudara', 'Jml Saudara', 'jumlahsaudara')) || 0;
 
     const rawKelasInput = getVal('Kelas', 'Kelas Sekarang', 'Tingkat', 'kelassekarang') || '1';
     const rawRombelInput = getVal('Rombel (A/B)', 'Rombel', 'Rombongan Belajar', 'Kelompok Kelas', 'rombel').toUpperCase();
@@ -311,9 +337,10 @@ export async function parseStudentExcelFile(file: File): Promise<ExcelImportRow[
 
     const asalSekolah = getVal('Asal Sekolah', 'Sekolah Asal', 'TK Asal', 'asalsekolah') || 'TK Pertiwi';
     const alamat = getVal('Alamat Jalan', 'Alamat', 'Tempat Tinggal', 'alamat') || 'Jl. Raya Pendidikan';
-    const kelurahan = getVal('Kelurahan', 'kelurahan') || 'Cempaka Putih';
-    const kecamatan = getVal('Kecamatan', 'kecamatan') || 'Cempaka Putih';
-    const kabupatenKota = getVal('Kota / Kabupaten', 'Kabupaten', 'Kota', 'kabupatenkota') || 'Jakarta Pusat';
+    const kelurahan = getVal('Kelurahan', 'kelurahan') || 'Cempaka';
+    const kecamatan = getVal('Kecamatan', 'kecamatan') || 'Warunggunung';
+    const kabupatenKota = getVal('Kota / Kabupaten', 'Kabupaten', 'Kota', 'kabupatenkota') || 'Kabupaten Lebak';
+    const provinsi = getVal('Provinsi', 'provinsi') || 'Banten';
 
     // Perbaikan komprehensif pembacaan Data Ayah dan Ibu dari berbagai variasi header Excel
     const namaAyah = getVal('Nama Ayah', 'Nama Ayah Kandung', 'Ayah Kandung', 'Ayah', 'Nama Bapak', 'Bapak', 'Nama Orang Tua', 'Nama Ortu', 'namaayah');
@@ -364,6 +391,8 @@ export async function parseStudentExcelFile(file: File): Promise<ExcelImportRow[
       tempatLahir,
       tanggalLahir,
       agama,
+      anakKe,
+      jumlahSaudara,
       kelasSekarang,
       rombel,
       statusSiswa,
@@ -372,6 +401,7 @@ export async function parseStudentExcelFile(file: File): Promise<ExcelImportRow[
       kelurahan,
       kecamatan,
       kabupatenKota,
+      provinsi,
       namaAyah,
       pendidikanAyah,
       pekerjaanAyah,
@@ -406,6 +436,8 @@ export function exportStudentsToExcel(students: Student[], schoolName: string = 
     'Tempat Lahir': s.tempatLahir,
     'Tanggal Lahir': s.tanggalLahir,
     'Agama': s.agama,
+    'Anak Ke-': s.anakKe || 1,
+    'Jumlah Saudara': s.jumlahSaudara || 0,
     'Kelas': s.kelasSekarang,
     'Rombel': s.rombel || 'A',
     'Status': s.statusSiswa.toUpperCase(),
@@ -416,11 +448,16 @@ export function exportStudentsToExcel(students: Student[], schoolName: string = 
     'Kelurahan': s.kelurahan,
     'Kecamatan': s.kecamatan,
     'Kota/Kab': s.kabupatenKota,
+    'Provinsi': s.provinsi || 'Banten',
     'Nama Ayah': s.dataAyah?.nama || '-',
+    'Pendidikan Ayah': s.dataAyah?.pendidikan || '-',
     'Pekerjaan Ayah': s.dataAyah?.pekerjaan || '-',
+    'Penghasilan Ayah': s.dataAyah?.penghasilan || '-',
     'No HP Ortu': s.dataAyah?.noHp || s.noHp || '-',
     'Nama Ibu': s.dataIbu?.nama || '-',
+    'Pendidikan Ibu': s.dataIbu?.pendidikan || '-',
     'Pekerjaan Ibu': s.dataIbu?.pekerjaan || '-',
+    'Penghasilan Ibu': s.dataIbu?.penghasilan || '-',
   }));
 
   const wb = XLSX.utils.book_new();
@@ -436,6 +473,8 @@ export function exportStudentsToExcel(students: Student[], schoolName: string = 
     { wch: 16 }, // Tempat Lahir
     { wch: 14 }, // Tgl Lahir
     { wch: 12 }, // Agama
+    { wch: 10 }, // Anak Ke
+    { wch: 14 }, // Jml Saudara
     { wch: 8 },  // Kelas
     { wch: 8 },  // Rombel
     { wch: 12 }, // Status
@@ -446,11 +485,16 @@ export function exportStudentsToExcel(students: Student[], schoolName: string = 
     { wch: 18 }, // Kelurahan
     { wch: 18 }, // Kecamatan
     { wch: 18 }, // Kota
+    { wch: 16 }, // Provinsi
     { wch: 22 }, // Ayah
+    { wch: 16 }, // Pend Ayah
     { wch: 18 }, // Kerja Ayah
+    { wch: 20 }, // Penghasilan Ayah
     { wch: 16 }, // HP
     { wch: 22 }, // Ibu
+    { wch: 16 }, // Pend Ibu
     { wch: 18 }, // Kerja Ibu
+    { wch: 20 }, // Penghasilan Ibu
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, 'BUKU_INDUK_SISWA');

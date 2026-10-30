@@ -457,9 +457,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                       : 'Koneksi Offline'}
                   </span>
                 </div>
-                <p className="text-xs text-emerald-100/90 mt-1 max-w-2xl leading-relaxed">
-                  Semua nilai rapor, presensi harian, dan data siswa yang Anda isi <strong>otomatis tersimpan ke server Google Cloud Firebase dan langsung tersinkron secara real-time dengan Administrator</strong>. Anda <strong>tidak perlu lagi mengunduh atau mengunggah Backup JSON setiap saat</strong>.
-                </p>
                 {lastSyncedAt && (
                   <p className="text-[11px] text-emerald-300 font-mono mt-1">
                     ✓ Terakhir tersimpan di cloud: {lastSyncedAt.toLocaleTimeString('id-ID')} WIB

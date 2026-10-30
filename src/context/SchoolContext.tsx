@@ -108,6 +108,7 @@ interface SchoolContextType {
   // Ujian S-15, S-16, S-17
   addExamCandidate: (cand: Omit<ExamCandidate, 'id'>) => void;
   updateExamCandidate: (id: string, updates: Partial<ExamCandidate>) => void;
+  replaceExamCandidatesForClass: (className: string, rombel: string, candidates: ExamCandidate[]) => void;
   saveExamSession: (session: ExamSession) => void;
   updateExamScore: (record: ExamScoreRecord) => void;
   
@@ -156,6 +157,16 @@ const STORAGE_KEYS = {
   ACHIEVEMENTS: 'adm_sekolah_achievements_v3',
   CURRICULUM: 'adm_sekolah_curriculum_v3',
   MYSQL_CONFIG: 'adm_sekolah_mysql_config_v3',
+};
+
+// Helper to safely strip undefined values and sanitize payload for Firestore
+const cleanFirestoreData = (data: any): any => {
+  return JSON.parse(
+    JSON.stringify(data, (_, value) => {
+      if (value === undefined) return null;
+      return value;
+    })
+  );
 };
 
 export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -434,7 +445,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     writeTimeoutRef.current = setTimeout(async () => {
       try {
-        await setDoc(doc(db, 'school_data', 'main'), {
+        const payload = cleanFirestoreData({
           schoolProfile,
           students,
           attendances,
@@ -450,7 +461,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           achievements,
           curriculumTargets,
           updatedAt: new Date().toISOString(),
-        }, { merge: true });
+        });
+
+        await setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
 
         setCloudSyncStatus('synced');
         setLastSyncedAt(new Date());
@@ -510,7 +523,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const forceSyncToCloud = async (): Promise<boolean> => {
     try {
       setCloudSyncStatus('syncing');
-      await setDoc(doc(db, 'school_data', 'main'), {
+      const payload = cleanFirestoreData({
         schoolProfile,
         students,
         attendances,
@@ -526,7 +539,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         achievements,
         curriculumTargets,
         updatedAt: new Date().toISOString(),
-      }, { merge: true });
+      });
+      await setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
       setCloudSyncStatus('synced');
       setLastSyncedAt(new Date());
       return true;
@@ -650,6 +664,19 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setExamCandidates(prev =>
       prev.map(c => (c.id === id ? { ...c, ...updates } : c))
     );
+  };
+
+  const replaceExamCandidatesForClass = (className: string, rombel: string, newCandidates: ExamCandidate[]) => {
+    setExamCandidates(prev => {
+      // Hilangkan data lama untuk kelas & rombel yang bersangkutan
+      const remaining = prev.filter(c => {
+        const matchClass = String(c.kelas).trim().toUpperCase() === String(className).trim().toUpperCase();
+        const st = students.find(s => s.id === c.studentId);
+        const matchRombel = (st?.rombel || 'A') === rombel;
+        return !(matchClass && matchRombel);
+      });
+      return [...newCandidates, ...remaining];
+    });
   };
 
   const saveExamSession = (session: ExamSession) => {
@@ -984,6 +1011,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         deleteMutation,
         addExamCandidate,
         updateExamCandidate,
+        replaceExamCandidatesForClass,
         saveExamSession,
         updateExamScore,
         addGraduateStudy,

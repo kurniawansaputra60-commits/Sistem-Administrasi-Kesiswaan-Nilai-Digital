@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
+import { ExamCandidate } from '../../types';
 import { isKelasMatch, toRomanClass, formatPlaceAndBirthDate } from '../../utils/classUtils';
-import { Printer, CheckCircle2, UserCheck, Plus, Lock } from 'lucide-react';
+import { Printer, UserCheck, Lock } from 'lucide-react';
 
 export const FormatS15_ExamCandidates: React.FC = () => {
-  const { students, schoolProfile, examCandidates, addExamCandidate } = useSchool();
+  const { students, schoolProfile, examCandidates, replaceExamCandidatesForClass } = useSchool();
   const { userProfile } = useAuth();
   const isGuruKelas = userProfile?.role === 'guru_kelas';
 
@@ -17,9 +18,22 @@ export const FormatS15_ExamCandidates: React.FC = () => {
   const effectiveClass = isGuruKelas ? toRomanClass(userProfile?.kelasTugas) : selectedClass;
   const effectiveRombel = isGuruKelas ? (userProfile?.rombelTugas || 'A') : selectedRombel;
 
-  // Siswa kelas terpilih yang belum didaftarkan sebagai calon peserta ujian
-  const unassignedStudents = students.filter(
-    s => isKelasMatch(s.kelasSekarang, effectiveClass) && s.statusSiswa !== 'calon' && (!s.rombel || s.rombel === effectiveRombel) && !examCandidates.some(c => c.studentId === s.id)
+  const getExamCategoryFullName = (category: 'ASAS' | 'ASAT' | 'ASAJ') => {
+    switch (category) {
+      case 'ASAS':
+        return 'ASESMEN SUMATIF AKHIR SEMESTER (ASAS)';
+      case 'ASAT':
+        return 'ASESMEN SUMATIF AKHIR TAHUN (ASAT)';
+      case 'ASAJ':
+        return 'ASESMEN SUMATIF AKHIR JENJANG (ASAJ)';
+      default:
+        return 'ASESMEN SUMATIF AKHIR SEMESTER (ASAS)';
+    }
+  };
+
+  // Seluruh siswa aktif kelas & rombel terpilih
+  const classStudents = students.filter(
+    s => isKelasMatch(s.kelasSekarang, effectiveClass) && s.statusSiswa !== 'calon' && (!s.rombel || s.rombel === effectiveRombel)
   );
 
   const filteredCandidates = examCandidates.filter(c => {
@@ -31,23 +45,23 @@ export const FormatS15_ExamCandidates: React.FC = () => {
   });
 
   const handleEnrollAll = () => {
-    unassignedStudents.forEach((st, idx) => {
-      const code = `01-04-20-${String(examCandidates.length + idx + 1).padStart(3, '0')}-8`;
-      addExamCandidate({
-        studentId: st.id,
-        nomorPesertaUjian: code,
-        nis: st.nis,
-        nisn: st.nisn,
-        namaLengkap: st.namaLengkap,
-        jenisKelamin: st.jenisKelamin,
-        tempatTanggalLahir: formatPlaceAndBirthDate(st.tempatLahir, st.tanggalLahir),
-        kelas: st.kelasSekarang,
-        syaratNilai: 'Lengkap',
-        syaratPresensi: 'Memenuhi (>=85%)',
-        statusVerifikasi: 'Memenuhi Syarat',
-        keterangan: `Terverifikasi Berhak Mengikuti Ujian ${selectedExamCategory} (DNT Final)`,
-      });
-    });
+    const newCandidates: ExamCandidate[] = classStudents.map((st, idx) => ({
+      id: `cand-${effectiveClass}-${effectiveRombel}-${st.id}`,
+      studentId: st.id,
+      nomorPesertaUjian: `01-04-20-${String(idx + 1).padStart(3, '0')}-8`,
+      nis: st.nis,
+      nisn: st.nisn,
+      namaLengkap: st.namaLengkap,
+      jenisKelamin: st.jenisKelamin,
+      tempatTanggalLahir: formatPlaceAndBirthDate(st.tempatLahir, st.tanggalLahir),
+      kelas: effectiveClass,
+      syaratNilai: 'Lengkap',
+      syaratPresensi: 'Memenuhi (>=85%)',
+      statusVerifikasi: 'Memenuhi Syarat',
+      keterangan: `Terverifikasi Berhak Mengikuti ${getExamCategoryFullName(selectedExamCategory)} (DNT Final)`,
+    }));
+
+    replaceExamCandidatesForClass(effectiveClass, effectiveRombel, newCandidates);
   };
 
   const maleCount = filteredCandidates.filter(c => c.jenisKelamin === 'L').length;
@@ -65,9 +79,9 @@ export const FormatS15_ExamCandidates: React.FC = () => {
               onChange={e => setSelectedExamCategory(e.target.value as 'ASAS' | 'ASAT' | 'ASAJ')}
               className="text-xs px-3 py-1.5 border border-emerald-300 rounded-md font-bold text-emerald-900 bg-emerald-50/50"
             >
-              <option value="ASAS">ASAS (Asesmen Sumatif Akhir Semester - Ganjil)</option>
-              <option value="ASAT">ASAT (Asesmen Sumatif Akhir Tahun - Genap)</option>
-              <option value="ASAJ">ASAJ (Asesmen Sumatif Akhir Jenjang - Kelas VI)</option>
+              <option value="ASAS">ASESMEN SUMATIF AKHIR SEMESTER (ASAS)</option>
+              <option value="ASAT">ASESMEN SUMATIF AKHIR TAHUN (ASAT)</option>
+              <option value="ASAJ">ASESMEN SUMATIF AKHIR JENJANG (ASAJ)</option>
             </select>
           </div>
 
@@ -110,15 +124,14 @@ export const FormatS15_ExamCandidates: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {unassignedStudents.length > 0 && (
-            <button
-              onClick={handleEnrollAll}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md transition-colors cursor-pointer"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-blue-700" />
-              <span>Daftarkan Semua Siswa Kelas {effectiveClass} ({unassignedStudents.length})</span>
-            </button>
-          )}
+          <button
+            onClick={handleEnrollAll}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-md transition-all shadow-xs cursor-pointer active:scale-95"
+            title="Daftarkan seluruh siswa aktif kelas ini dan perbarui nomor peserta berurutan rapi"
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Daftarkan Semua Siswa Kelas {effectiveClass} {effectiveRombel} ({classStudents.length})</span>
+          </button>
 
           <button
             onClick={() => window.print()}
@@ -134,7 +147,7 @@ export const FormatS15_ExamCandidates: React.FC = () => {
       <div className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-xs print:border-none print:shadow-none print:p-0 print:m-0 text-slate-900 text-xs">
         <OfficialKop
           formatCode="S-15"
-          formatTitle={`DAFTAR CALON PESERTA UJIAN (${selectedExamCategory})`}
+          formatTitle={`DAFTAR CALON PESERTA UJIAN\n${getExamCategoryFullName(selectedExamCategory)}`}
           subTitle={`DAFTAR NOMINASI TETAP (DNT) ${selectedExamCategory} TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
           kelas={`${effectiveClass} - ${effectiveRombel}`}
         />
