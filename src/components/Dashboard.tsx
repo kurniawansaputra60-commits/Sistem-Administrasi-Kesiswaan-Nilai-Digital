@@ -29,6 +29,8 @@ import {
   BookOpen,
   PieChart,
   Filter,
+  Cloud,
+  RefreshCw,
 } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { useAuth, UserRole } from '../context/AuthContext';
@@ -55,6 +57,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
     downloadMySQLDump,
     exportDataToJson,
     importDataFromJson,
+    cloudSyncStatus,
+    lastSyncedAt,
+    forceSyncToCloud,
   } = useSchool();
 
   // Active role: default to admin if not set
@@ -421,35 +426,76 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
           </div>
         </div>
 
-        {/* Cadangan & Pemulihan Data Seluruh Sistem (Backup JSON) untuk Guru & Wali Kelas */}
+        {/* Status Sinkronisasi Real-time Firebase Firestore & Cadangan Sistem untuk Guru & Wali Kelas */}
         <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 p-6 rounded-2xl text-white shadow-md space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0">
-                <Database className="w-5 h-5" />
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0 mt-0.5">
+                <Cloud className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-sm md:text-base font-black text-white">
-                  Cadangan &amp; Pemulihan Data Seluruh Sistem (Backup JSON)
-                </h2>
-                <p className="text-xs text-emerald-200 mt-0.5">
-                  Cegah kehilangan data saat menutup browser atau berpindah perangkat di Vercel. Unduh cadangan JSON atau pulihkan data kapan saja.
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm md:text-base font-black text-white">
+                    Sinkronisasi Cloud Firebase Firestore (Aktif &amp; Otomatis)
+                  </h2>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    cloudSyncStatus === 'synced'
+                      ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/40'
+                      : cloudSyncStatus === 'syncing' || cloudSyncStatus === 'initial_loading'
+                      ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40 animate-pulse'
+                      : 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      cloudSyncStatus === 'synced' ? 'bg-emerald-400 animate-ping' : cloudSyncStatus === 'syncing' ? 'bg-amber-400' : 'bg-rose-400'
+                    }`} />
+                    {cloudSyncStatus === 'synced'
+                      ? 'Tersinkron Real-time'
+                      : cloudSyncStatus === 'syncing'
+                      ? 'Menyimpan ke Cloud...'
+                      : cloudSyncStatus === 'initial_loading'
+                      ? 'Menghubungkan Cloud...'
+                      : 'Koneksi Offline'}
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-100/90 mt-1 max-w-2xl leading-relaxed">
+                  Semua nilai rapor, presensi harian, dan data siswa yang Anda isi <strong>otomatis tersimpan ke server Google Cloud Firebase dan langsung tersinkron secara real-time dengan Administrator</strong>. Anda <strong>tidak perlu lagi mengunduh atau mengunggah Backup JSON setiap saat</strong>.
                 </p>
+                {lastSyncedAt && (
+                  <p className="text-[11px] text-emerald-300 font-mono mt-1">
+                    ✓ Terakhir tersimpan di cloud: {lastSyncedAt.toLocaleTimeString('id-ID')} WIB
+                  </p>
+                )}
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <button
-                onClick={handleExportJson}
-                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-2 active:scale-95"
+                onClick={async () => {
+                  const ok = await forceSyncToCloud();
+                  if (ok) {
+                    setBackupMsg('Data berhasil diverifikasi dan disinkronkan ke Cloud Firebase!');
+                    setTimeout(() => setBackupMsg(null), 4000);
+                  }
+                }}
+                disabled={cloudSyncStatus === 'syncing'}
+                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
               >
-                <Download className="w-4 h-4" />
-                <span>Unduh Cadangan (Backup JSON)</span>
+                <RefreshCw className={`w-3.5 h-3.5 ${cloudSyncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                <span>{cloudSyncStatus === 'syncing' ? 'Menyimpan...' : 'Sinkronkan Sekarang'}</span>
               </button>
 
-              <label className="px-4 py-2.5 bg-white text-emerald-950 hover:bg-emerald-50 font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-2 active:scale-95">
-                <FileText className="w-4 h-4 text-emerald-700" />
-                <span>Pulihkan Data (Restore JSON)</span>
+              <button
+                onClick={handleExportJson}
+                className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                title="Unduh file .JSON sebagai arsip cadangan fisik komputer Anda (opsional)"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-300" />
+                <span>Arsip Cadangan JSON</span>
+              </button>
+
+              <label className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95" title="Pulihkan dari file JSON lama jika diperlukan">
+                <FileText className="w-3.5 h-3.5 text-emerald-300" />
+                <span>Pulihkan JSON</span>
                 <input
                   type="file"
                   accept=".json"
@@ -473,9 +519,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
             </div>
           )}
 
-          <div className="text-[11px] text-emerald-100/80 flex items-center justify-between">
-            <span>ℹ️ File cadangan mencakup seluruh data siswa, profil sekolah, nilai rapor, presensi, dan mutasi rombel binaan Anda.</span>
-            <span className="font-mono text-emerald-300">Format: .JSON</span>
+          <div className="text-[11px] text-emerald-200/80 flex flex-wrap items-center justify-between gap-2">
+            <span>💡 Cloud Firebase terhubung 24/7. Data kelas 1 s.d 6 otomatis tersinkron antar pengguna tanpa perlu pengiriman file manual.</span>
+            <span className="font-mono text-emerald-300 font-semibold">Instance: Firestore Real-Time DB</span>
           </div>
         </div>
 
@@ -1046,35 +1092,76 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
         </div>
       </div>
 
-      {/* Cadangan & Pemulihan Data Seluruh Sistem (Backup JSON) untuk Admin */}
+      {/* Status Sinkronisasi Real-time Firebase Firestore & Cadangan Sistem untuk Admin */}
       <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 p-6 rounded-2xl text-white shadow-md space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 shrink-0">
-              <Database className="w-5 h-5" />
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 shrink-0 mt-0.5">
+              <Cloud className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm md:text-base font-black text-white">
-                Cadangan &amp; Pemulihan Data Seluruh Sistem (Backup JSON)
-              </h2>
-              <p className="text-xs text-purple-200 mt-0.5">
-                Cegah kehilangan data saat menutup browser atau berpindah perangkat di Vercel. Unduh cadangan JSON atau pulihkan data kapan saja.
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm md:text-base font-black text-white">
+                  Pusat Sinkronisasi Cloud Firebase Firestore (Aktif &amp; Otomatis)
+                </h2>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  cloudSyncStatus === 'synced'
+                    ? 'bg-purple-500/30 text-purple-200 border border-purple-400/40'
+                    : cloudSyncStatus === 'syncing' || cloudSyncStatus === 'initial_loading'
+                    ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40 animate-pulse'
+                    : 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    cloudSyncStatus === 'synced' ? 'bg-emerald-400 animate-ping' : cloudSyncStatus === 'syncing' ? 'bg-amber-400' : 'bg-rose-400'
+                  }`} />
+                  {cloudSyncStatus === 'synced'
+                    ? 'Tersinkron Real-time'
+                    : cloudSyncStatus === 'syncing'
+                    ? 'Menyimpan ke Cloud...'
+                    : cloudSyncStatus === 'initial_loading'
+                    ? 'Menghubungkan Cloud...'
+                    : 'Koneksi Offline'}
+                </span>
+              </div>
+              <p className="text-xs text-purple-200 mt-1 max-w-2xl leading-relaxed">
+                Seluruh pengisian nilai dan presensi dari para <strong>Wali Kelas 1 s.d 6 otomatis tersinkronisasi ke dasbor Administrator secara instan</strong> via Google Cloud Firebase Firestore. Anda dapat langsung mengawasi data tanpa menunggu pengiriman file.
               </p>
+              {lastSyncedAt && (
+                <p className="text-[11px] text-purple-300 font-mono mt-1">
+                  ✓ Terakhir tersimpan di cloud: {lastSyncedAt.toLocaleTimeString('id-ID')} WIB
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <button
-              onClick={handleExportJson}
-              className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-2 active:scale-95"
+              onClick={async () => {
+                const ok = await forceSyncToCloud();
+                if (ok) {
+                  setBackupMsg('Seluruh data sistem berhasil disinkronkan ke Cloud Firebase!');
+                  setTimeout(() => setBackupMsg(null), 4000);
+                }
+              }}
+              disabled={cloudSyncStatus === 'syncing'}
+              className="px-3.5 py-2 bg-purple-500 hover:bg-purple-400 text-white font-black text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
-              <span>Unduh Cadangan (Backup JSON)</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${cloudSyncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+              <span>{cloudSyncStatus === 'syncing' ? 'Menyimpan...' : 'Sinkronkan Sekarang'}</span>
             </button>
 
-            <label className="px-4 py-2.5 bg-white text-purple-950 hover:bg-purple-50 font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-2 active:scale-95">
-              <FileText className="w-4 h-4 text-purple-700" />
-              <span>Pulihkan Data (Restore JSON)</span>
+            <button
+              onClick={handleExportJson}
+              className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+              title="Unduh file .JSON sebagai arsip cadangan fisik komputer Anda (opsional)"
+            >
+              <Download className="w-3.5 h-3.5 text-purple-300" />
+              <span>Arsip Cadangan JSON</span>
+            </button>
+
+            <label className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95" title="Pulihkan dari file JSON lama jika diperlukan">
+              <FileText className="w-3.5 h-3.5 text-purple-300" />
+              <span>Pulihkan JSON</span>
               <input
                 type="file"
                 accept=".json"
@@ -1098,9 +1185,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
           </div>
         )}
 
-        <div className="text-[11px] text-purple-100/80 flex items-center justify-between">
-          <span>ℹ️ File cadangan mencakup seluruh data siswa, profil sekolah, nilai rapor, presensi, dan mutasi seluruh rombel sekolah.</span>
-          <span className="font-mono text-purple-300">Format: .JSON</span>
+        <div className="text-[11px] text-purple-200/80 flex flex-wrap items-center justify-between gap-2">
+          <span>💡 Cloud Firebase Firestore aktif 24/7. Data otomatis tersimpan di cloud terpusat tanpa perlu unduh/unggah berkas JSON berkala.</span>
+          <span className="font-mono text-purple-300 font-semibold">Instance: Firestore Real-Time DB</span>
         </div>
       </div>
 

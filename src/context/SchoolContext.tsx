@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { db, auth } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import {
   SchoolProfile,
   Student,
@@ -81,6 +81,11 @@ interface SchoolContextType {
   achievements: AchievementRecord[];
   curriculumTargets: CurriculumTargetRecord[];
   mysqlConfig: MySQLConfig;
+
+  // Real-time Cloud Firebase Firestore Status
+  cloudSyncStatus: 'initial_loading' | 'synced' | 'syncing' | 'error';
+  lastSyncedAt: Date | null;
+  forceSyncToCloud: () => Promise<boolean>;
   
   // Actions
   updateSchoolProfile: (updates: Partial<SchoolProfile>) => void;
@@ -309,13 +314,31 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
-  // Load from Firebase Firestore on mount
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'initial_loading' | 'synced' | 'syncing' | 'error'>('initial_loading');
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+
+  // Critical guards to prevent initial state from overwriting cloud data and avoid ping-pong loops
+  const isCloudLoadedRef = useRef(false);
+  const isRemoteUpdateRef = useRef(false);
+  const writeTimeoutRef = useRef<any>(null);
+
+  // 1. Real-time Listener from Firebase Firestore
   useEffect(() => {
-    getDoc(doc(db, 'school_data', 'main'))
-      .then(snap => {
+    const unsub = onSnapshot(
+      doc(db, 'school_data', 'main'),
+      (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          if (data.schoolProfile) setSchoolProfile(prev => ({ ...prev, ...data.schoolProfile }));
+          isRemoteUpdateRef.current = true;
+
+          if (data.schoolProfile) {
+            setSchoolProfile(prev => ({
+              ...prev,
+              ...data.schoolProfile,
+              // Pastikan logo tetap valid jika kosong
+              logoSekolahUrl: data.schoolProfile.logoSekolahUrl || prev.logoSekolahUrl,
+            }));
+          }
           if (Array.isArray(data.students)) setStudents(data.students);
           if (Array.isArray(data.attendances)) setAttendances(data.attendances);
           if (Array.isArray(data.warningLetters)) setWarningLetters(data.warningLetters);
@@ -329,15 +352,54 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (Array.isArray(data.gradStudies)) setGradStudies(data.gradStudies);
           if (Array.isArray(data.achievements)) setAchievements(data.achievements);
           if (Array.isArray(data.curriculumTargets)) setCurriculumTargets(data.curriculumTargets);
+
+          // Update local storage backup
+          try {
+            if (data.schoolProfile) localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(data.schoolProfile));
+            if (Array.isArray(data.students)) localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(data.students));
+            if (Array.isArray(data.attendances)) localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(data.attendances));
+            if (Array.isArray(data.warningLetters)) localStorage.setItem(STORAGE_KEYS.WARNING_LETTERS, JSON.stringify(data.warningLetters));
+            if (Array.isArray(data.transferRequests)) localStorage.setItem(STORAGE_KEYS.TRANSFER_REQ, JSON.stringify(data.transferRequests));
+            if (Array.isArray(data.transferOuts)) localStorage.setItem(STORAGE_KEYS.TRANSFER_OUT, JSON.stringify(data.transferOuts));
+            if (Array.isArray(data.transferIns)) localStorage.setItem(STORAGE_KEYS.TRANSFER_IN, JSON.stringify(data.transferIns));
+            if (Array.isArray(data.mutations)) localStorage.setItem(STORAGE_KEYS.MUTATIONS, JSON.stringify(data.mutations));
+            if (Array.isArray(data.examCandidates)) localStorage.setItem(STORAGE_KEYS.EXAM_CANDIDATES, JSON.stringify(data.examCandidates));
+            if (Array.isArray(data.examSessions)) localStorage.setItem(STORAGE_KEYS.EXAM_SESSIONS, JSON.stringify(data.examSessions));
+            if (Array.isArray(data.examScores)) localStorage.setItem(STORAGE_KEYS.EXAM_SCORES, JSON.stringify(data.examScores));
+            if (Array.isArray(data.gradStudies)) localStorage.setItem(STORAGE_KEYS.GRAD_STUDIES, JSON.stringify(data.gradStudies));
+            if (Array.isArray(data.achievements)) localStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(data.achievements));
+            if (Array.isArray(data.curriculumTargets)) localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(data.curriculumTargets));
+          } catch (e) {
+            console.warn('LocalStorage backup sync:', e);
+          }
+
+          isCloudLoadedRef.current = true;
+          setCloudSyncStatus('synced');
+          setLastSyncedAt(new Date());
+
+          setTimeout(() => {
+            isRemoteUpdateRef.current = false;
+          }, 150);
+        } else {
+          // Cloud document does not exist yet (first time initialization)
+          isCloudLoadedRef.current = true;
+          setCloudSyncStatus('synced');
         }
-      })
-      .catch(err => {
+      },
+      (err) => {
         handleFirestoreError(err, OperationType.GET, 'school_data/main');
-      });
+        setCloudSyncStatus('error');
+        // If offline, still allow user to work with local data
+        isCloudLoadedRef.current = true;
+      }
+    );
+
+    return () => unsub();
   }, []);
 
-  // Local Storage & Cloud Firestore Synchronizations
+  // 2. Debounced push to Cloud Firebase Firestore when local state changes
   useEffect(() => {
+    // Selalu simpan di LocalStorage sebagai cadangan lokal instan
     localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(schoolProfile));
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendances));
@@ -354,32 +416,51 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(curriculumTargets));
     localStorage.setItem(STORAGE_KEYS.MYSQL_CONFIG, JSON.stringify(mysqlConfig));
 
-    // Also sync to Cloud Firebase Firestore actively
-    try {
-      setDoc(doc(db, 'school_data', 'main'), {
-        schoolProfile,
-        students,
-        attendances,
-        warningLetters,
-        transferRequests,
-        transferOuts,
-        transferIns,
-        mutations,
-        examCandidates,
-        examSessions,
-        examScores,
-        gradStudies,
-        achievements,
-        curriculumTargets,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true }).catch((err) => {
-        handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+    // GUARD 1: JANGAN TIMPA CLOUD sebelum data awal dari Firestore berhasil termuat!
+    if (!isCloudLoadedRef.current) {
+      return;
     }
 
-    // Also sync to server background file storage
+    // GUARD 2: JANGAN kirim balik data yang baru saja diterima dari onSnapshot!
+    if (isRemoteUpdateRef.current) {
+      return;
+    }
+
+    setCloudSyncStatus('syncing');
+
+    if (writeTimeoutRef.current) {
+      clearTimeout(writeTimeoutRef.current);
+    }
+
+    writeTimeoutRef.current = setTimeout(async () => {
+      try {
+        await setDoc(doc(db, 'school_data', 'main'), {
+          schoolProfile,
+          students,
+          attendances,
+          warningLetters,
+          transferRequests,
+          transferOuts,
+          transferIns,
+          mutations,
+          examCandidates,
+          examSessions,
+          examScores,
+          gradStudies,
+          achievements,
+          curriculumTargets,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+
+        setCloudSyncStatus('synced');
+        setLastSyncedAt(new Date());
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+        setCloudSyncStatus('error');
+      }
+    }, 600); // 600ms debounce
+
+    // Sync juga ke backend server jika aktif
     try {
       fetch('/api/sync', {
         method: 'POST',
@@ -402,6 +483,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }),
       }).catch(() => {});
     } catch {}
+
+    return () => {
+      if (writeTimeoutRef.current) {
+        clearTimeout(writeTimeoutRef.current);
+      }
+    };
   }, [
     schoolProfile,
     students,
@@ -419,6 +506,36 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     curriculumTargets,
     mysqlConfig,
   ]);
+
+  const forceSyncToCloud = async (): Promise<boolean> => {
+    try {
+      setCloudSyncStatus('syncing');
+      await setDoc(doc(db, 'school_data', 'main'), {
+        schoolProfile,
+        students,
+        attendances,
+        warningLetters,
+        transferRequests,
+        transferOuts,
+        transferIns,
+        mutations,
+        examCandidates,
+        examSessions,
+        examScores,
+        gradStudies,
+        achievements,
+        curriculumTargets,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      setCloudSyncStatus('synced');
+      setLastSyncedAt(new Date());
+      return true;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+      setCloudSyncStatus('error');
+      return false;
+    }
+  };
 
   const updateSchoolProfile = (updates: Partial<SchoolProfile>) => {
     setSchoolProfile(prev => {
@@ -850,6 +967,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         achievements,
         curriculumTargets,
         mysqlConfig,
+        cloudSyncStatus,
+        lastSyncedAt,
+        forceSyncToCloud,
         updateSchoolProfile,
         addStudent,
         updateStudent,

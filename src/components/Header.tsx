@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Printer, School, LogIn, LogOut, ShieldCheck, User } from 'lucide-react';
+import { Printer, School, LogIn, LogOut, ShieldCheck, User, Cloud, RefreshCw } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { useAuth, UserRole } from '../context/AuthContext';
 import { LoginModal } from './LoginModal';
@@ -17,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   formatTag,
   onPrint,
 }) => {
-  const { schoolProfile } = useSchool();
+  const { schoolProfile, cloudSyncStatus, lastSyncedAt, forceSyncToCloud } = useSchool();
   const { userProfile, logout } = useAuth();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Zone 2: School Year, Account & Print Actions */}
         <div className="flex items-center gap-2.5 shrink-0">
           {/* Badge Tahun Ajaran & Semester */}
-          <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-600 whitespace-nowrap">
+          <div className="hidden xl:flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-600 whitespace-nowrap">
             <School className="w-3.5 h-3.5 text-slate-500" />
             <span>
               T.A. <strong className="font-semibold text-slate-800">{schoolProfile.tahunAjaranAktif}</strong>
@@ -90,6 +90,50 @@ export const Header: React.FC<HeaderProps> = ({
             <span>·</span>
             <span>
               Sem. <strong className="font-semibold text-slate-800">{schoolProfile.semesterAktif === '1' ? 'Ganjil' : 'Genap'}</strong>
+            </span>
+          </div>
+
+          {/* Realtime Cloud Sync Status Badge */}
+          <div
+            onClick={() => forceSyncToCloud()}
+            title={
+              cloudSyncStatus === 'synced'
+                ? `Sinkronisasi Otomatis Cloud Firebase Firestore Aktif (${lastSyncedAt ? lastSyncedAt.toLocaleTimeString('id-ID') : 'Real-time'}). Klik untuk sinkronisasi paksa.`
+                : cloudSyncStatus === 'syncing'
+                ? 'Sedang menyimpan perubahan ke Cloud Firestore...'
+                : cloudSyncStatus === 'initial_loading'
+                ? 'Menghubungkan ke Cloud Firestore...'
+                : 'Koneksi Firestore gagal. Klik untuk coba sinkronkan ulang.'
+            }
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all border shadow-2xs ${
+              cloudSyncStatus === 'synced'
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                : cloudSyncStatus === 'syncing' || cloudSyncStatus === 'initial_loading'
+                ? 'bg-amber-50 text-amber-800 border-amber-300'
+                : 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100'
+            }`}
+          >
+            <span className="relative flex h-2 w-2">
+              {cloudSyncStatus === 'synced' ? (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </>
+              ) : cloudSyncStatus === 'syncing' || cloudSyncStatus === 'initial_loading' ? (
+                <RefreshCw className="w-2.5 h-2.5 animate-spin text-amber-600" />
+              ) : (
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+              )}
+            </span>
+            <Cloud className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline text-[11px] font-bold">
+              {cloudSyncStatus === 'synced'
+                ? 'Cloud Firestore: Realtime'
+                : cloudSyncStatus === 'syncing'
+                ? 'Menyimpan ke Cloud...'
+                : cloudSyncStatus === 'initial_loading'
+                ? 'Menghubungkan Cloud...'
+                : 'Sinkron Ulang'}
             </span>
           </div>
 
