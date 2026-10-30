@@ -172,7 +172,7 @@ export interface TransferOutCertificate {
   catatanKelakuan: string;
 }
 
-// Format S-14 & PS-14a: Buku Mutasi Siswa Semesteran & Buku Mutasi Siswa Kelas
+// Format S-14 & PS-14a: Buku Mutasi Siswa Semesteran & Kelas
 export interface StudentMutationRecord {
   id: string;
   studentId: string;
@@ -182,7 +182,6 @@ export interface StudentMutationRecord {
   jenisMutasi: 'MASUK' | 'KELUAR';
   tanggalMutasi: string;
   kelas: string;
-  rombel?: string;
   semester: '1' | '2';
   sekolahAsalTujuan: string;
   alasanMutasi: string;
@@ -190,7 +189,7 @@ export interface StudentMutationRecord {
   keterangan?: string;
 }
 
-// Format S-15: Daftar Calon Peserta UAS
+// Format S-15: Daftar Calon Peserta Ujian
 export interface ExamCandidate {
   id: string;
   studentId: string;
@@ -201,22 +200,22 @@ export interface ExamCandidate {
   jenisKelamin: Gender;
   tempatTanggalLahir: string;
   kelas: string;
-  syaratNilai: 'Lengkap' | 'Belum Lengkap';
-  syaratPresensi: 'Memenuhi (>=85%)' | 'Kurang';
-  statusVerifikasi: 'Memenuhi Syarat' | 'Belum Memenuhi Syarat';
-  keterangan: string;
+  syaratNilai: string;
+  syaratPresensi: string;
+  statusVerifikasi: string;
+  keterangan?: string;
 }
 
-export interface ExamParticipantRecord {
+// Format S-16: Daftar Hadir Peserta Ujian
+export interface ExamParticipant {
   id: string;
   studentId: string;
   nomorPeserta: string;
   namaLengkap: string;
   jenisKelamin: Gender;
-  statusHadir: 'HADIR' | 'TIDAK_HADIR';
-  alasanAbsen?: string;
-  nomorMeja: string;
-  tandaTangan: boolean;
+  statusHadir: 'HADIR' | 'TIDAK HADIR' | 'IZIN' | 'SAKIT';
+  nomorMeja?: string;
+  tandaTangan?: boolean;
 }
 
 export interface ExamSession {
@@ -227,28 +226,10 @@ export interface ExamSession {
   ruangUjian: string;
   pengawas1: string;
   pengawas2: string;
-  participants: ExamParticipantRecord[];
+  participants: ExamParticipant[];
 }
 
-// Format S-16: Tanda Peserta UAS (Kartu Ujian)
-export interface ExamCard {
-  nomorPeserta: string;
-  studentId: string;
-  namaLengkap: string;
-  nis: string;
-  nisn: string;
-  kelas: string;
-  ruangUjian: string;
-  tempatTanggalLahir: string;
-  jadwal: {
-    hariTanggal: string;
-    waktu: string;
-    mataPelajaran: string;
-    parafPengawas?: string;
-  }[];
-}
-
-// Format S-17: Daftar Peserta UAS dan Prestasinya
+// Format S-17: Daftar UAS & Prestasi
 export interface ExamScoreRecord {
   studentId: string;
   nomorPeserta: string;
@@ -256,18 +237,14 @@ export interface ExamScoreRecord {
   namaLengkap: string;
   jenisKelamin: Gender;
   kelas: string;
-  rombel?: string;
-  mapelScores: {
-    mapel: string;
-    nilai: number;
-  }[];
+  mapelScores: { mapel: string; nilai: number }[];
   jumlahNilai: number;
   rataRata: number;
   ranking: number;
-  prestasi: string; // e.g. "Peringkat 1 / Nilai Tertinggi", "Tuntas / Memuaskan"
+  prestasi?: string;
 }
 
-// Format S-18: Daftar Siswa Masuk SLTP/MTS
+// Format S-18, S-19, S-20: Lulusan & Studi Lanjutan
 export interface GraduateStudyRecord {
   id: string;
   studentId: string;
@@ -277,11 +254,11 @@ export interface GraduateStudyRecord {
   jenisKelamin: Gender;
   tahunLulus: string;
   statusStudi: 'MELANJUTKAN' | 'TIDAK_MELANJUTKAN' | 'BEKERJA' | 'BELUM_DIKETAHUI';
-  namaSekolahLanjutan: string;
-  jenisSekolahLanjutan: 'SMP Negeri' | 'SMP Swasta' | 'MTs Negeri' | 'MTs Swasta' | 'Pesantren' | 'Lainnya';
-  kabupatenKotaLanjutan: string;
-  noIjazah: string;
-  keterangan: string;
+  namaSekolahLanjutan?: string;
+  jenisSekolahLanjutan?: string;
+  kabupatenKotaLanjutan?: string;
+  noIjazah?: string;
+  keterangan?: string;
 }
 
 // Format PS-21 & PS-22: Daftar Prestasi Siswa (Bibit Unggul) & Daftar Siswa Berprestasi
@@ -362,6 +339,7 @@ export interface SchoolProfile {
   tahunAjaranAktif: string; // e.g. "2025/2026"
   semesterAktif: '1' | '2';
   tanggalDokumen: string;
+  updatedAt?: string;
 }
 
 // MySQL Database Config
@@ -397,13 +375,52 @@ export type ActiveTab =
   | 'ps14a_mutasi_kelas'
   | 's15_calon_uas'
   | 's16_tanda_peserta_uas'
-  | 's17_peserta_uas_prestasi'
-  | 's18_masuk_sltp'
-  | 's19_kenaikan_kelas'
-  | 's20_rekap_kenaikan_kelulusan'
+  | 's17_daftar_nilai_uas'
+  | 's18_lulusan_studi_lanjut'
+  | 's19_daftar_lulusan'
+  | 's20_statistik_kelulusan'
   | 'ps21_prestasi_bibit_unggul'
   | 'ps22_siswa_berprestasi'
-  | 'ps23_sasaran_kurikulum'
-  | 'ps24_grafik_kurikulum'
-  | 'excel_import'
+  | 'ps23_capaian_kurikulum'
+  | 'ps24_taraf_serap'
   | 'mysql_center';
+
+export interface UserProfileDraft {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  role?: string;
+  kelasTugas?: string;
+  rombelTugas?: string;
+}
+
+export interface MySQLConnectionResult {
+  success: boolean;
+  message: string;
+}
+
+export interface ImportResult {
+  added: number;
+  replaced: number;
+}
+
+export interface BackupPayload {
+  version: string;
+  exportedAt: string;
+  schoolProfile: SchoolProfile;
+  students: Student[];
+  attendances: DailyAttendanceRecord[];
+  warningLetters: AbsenceWarningLetter[];
+  transferRequests: TransferRequestLetter[];
+  transferOuts: TransferOutCertificate[];
+  transferIns: TransferInConfirmation[];
+  mutations: StudentMutationRecord[];
+  examCandidates: ExamCandidate[];
+  examSessions: ExamSession[];
+  examScores: ExamScoreRecord[];
+  gradStudies: GraduateStudyRecord[];
+  achievements: AchievementRecord[];
+  curriculumTargets: CurriculumTargetRecord[];
+}
+
+export type SyncStatus = 'initial_loading' | 'synced' | 'syncing' | 'error';
