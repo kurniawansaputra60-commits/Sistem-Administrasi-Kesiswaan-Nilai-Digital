@@ -60,7 +60,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
       emailVerified: auth.currentUser?.emailVerified,
     },
     operationType,
-    path
+    path,
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
 }
@@ -86,32 +86,32 @@ interface SchoolContextType {
   cloudSyncStatus: 'initial_loading' | 'synced' | 'syncing' | 'error';
   lastSyncedAt: Date | null;
   forceSyncToCloud: () => Promise<boolean>;
-  
+
   // Actions
   updateSchoolProfile: (updates: Partial<SchoolProfile>) => void;
   addStudent: (student: Omit<Student, 'id'>) => string;
   updateStudent: (id: string, updates: Partial<Student>) => void;
   deleteStudent: (id: string) => void;
-  
+
   // Absensi & S-10 Panggilan Ortu
   saveAttendance: (record: DailyAttendanceRecord) => void;
   addWarningLetter: (letter: Omit<AbsenceWarningLetter, 'id'>) => void;
   deleteWarningLetter: (id: string) => void;
-  
+
   // Mutasi S-12, S-13, S-14, PS-14a
   addTransferRequest: (req: Omit<TransferRequestLetter, 'id'>) => void;
   addTransferOut: (cert: Omit<TransferOutCertificate, 'id'>) => void;
   addTransferIn: (conf: Omit<TransferInConfirmation, 'id'>) => void;
   addMutation: (record: Omit<StudentMutationRecord, 'id'>) => void;
   deleteMutation: (id: string) => void;
-  
+
   // Ujian S-15, S-16, S-17
   addExamCandidate: (cand: Omit<ExamCandidate, 'id'>) => void;
   updateExamCandidate: (id: string, updates: Partial<ExamCandidate>) => void;
   replaceExamCandidatesForClass: (className: string, rombel: string, candidates: ExamCandidate[]) => void;
   saveExamSession: (session: ExamSession) => void;
   updateExamScore: (record: ExamScoreRecord) => void;
-  
+
   // Kelulusan & Lanjutan Studi S-18, S-19, S-20
   addGraduateStudy: (study: Omit<GraduateStudyRecord, 'id'>) => void;
   updateGraduateStudy: (id: string, updates: Partial<GraduateStudyRecord>) => void;
@@ -128,7 +128,7 @@ interface SchoolContextType {
 
   // Excel Import & Export
   importStudentsFromExcel: (imported: Partial<Student>[], mode: 'append' | 'replace') => { added: number; replaced: number };
-  
+
   // MySQL & Backup
   updateMySQLConfig: (updates: Partial<MySQLConfig>) => void;
   testMySQLConnection: () => Promise<{ success: boolean; message: string }>;
@@ -175,12 +175,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
       if (!saved) return initialSchoolProfile;
       const parsed = JSON.parse(saved);
-      // Pastikan logoSekolahUrl terisi logo resmi baru
       const logoUrl = parsed.logoSekolahUrl && !parsed.logoSekolahUrl.includes('KOP_SURAT_NEW')
         ? parsed.logoSekolahUrl
         : '/assets/aistudio/llogo_06ce9f11.png';
 
-      // Pertahankan secara utuh data waliKelasList yang telah diatur oleh pengguna
       const validWaliList = Array.isArray(parsed.waliKelasList)
         ? parsed.waliKelasList
         : initialSchoolProfile.waliKelasList;
@@ -193,6 +191,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         nipPetugasAdmin: parsed.nipPetugasAdmin || '19890906 202521 1 004',
         petugasAdminTtdUrl: parsed.petugasAdminTtdUrl || initialSchoolProfile.petugasAdminTtdUrl,
         waliKelasList: validWaliList,
+        updatedAt: parsed.updatedAt || new Date().toISOString(),
       };
     } catch {
       return initialSchoolProfile;
@@ -325,7 +324,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
-  // Critical refs to avoid stale closure state during async cloud sync
   const schoolProfileRef = useRef<SchoolProfile>(schoolProfile);
   const studentsRef = useRef<Student[]>(students);
   const attendancesRef = useRef<DailyAttendanceRecord[]>(attendances);
@@ -359,82 +357,99 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'initial_loading' | 'synced' | 'syncing' | 'error'>('initial_loading');
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
-  // Critical guards to prevent initial state from overwriting cloud data and avoid ping-pong loops
   const isCloudLoadedRef = useRef(false);
   const isRemoteUpdateRef = useRef(false);
   const writeTimeoutRef = useRef<any>(null);
+  const lastLocalWriteAtRef = useRef<number>(0);
 
-  // 1. Real-time Listener from Firebase Firestore
+  const markLocalWrite = () => {
+    lastLocalWriteAtRef.current = Date.now();
+  };
+
   useEffect(() => {
     const unsub = onSnapshot(
       doc(db, 'school_data', 'main'),
       (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          isRemoteUpdateRef.current = true;
-
-          if (data.schoolProfile) {
-            setSchoolProfile(prev => {
-              const merged = {
-                ...prev,
-                ...data.schoolProfile,
-                logoSekolahUrl: data.schoolProfile.logoSekolahUrl || prev.logoSekolahUrl,
-              };
-              schoolProfileRef.current = merged;
-              return merged;
-            });
-          }
-          if (Array.isArray(data.students)) { setStudents(data.students); studentsRef.current = data.students; }
-          if (Array.isArray(data.attendances)) { setAttendances(data.attendances); attendancesRef.current = data.attendances; }
-          if (Array.isArray(data.warningLetters)) { setWarningLetters(data.warningLetters); warningLettersRef.current = data.warningLetters; }
-          if (Array.isArray(data.transferRequests)) { setTransferRequests(data.transferRequests); transferRequestsRef.current = data.transferRequests; }
-          if (Array.isArray(data.transferOuts)) { setTransferOuts(data.transferOuts); transferOutsRef.current = data.transferOuts; }
-          if (Array.isArray(data.transferIns)) { setTransferIns(data.transferIns); transferInsRef.current = data.transferIns; }
-          if (Array.isArray(data.mutations)) { setMutations(data.mutations); mutationsRef.current = data.mutations; }
-          if (Array.isArray(data.examCandidates)) { setExamCandidates(data.examCandidates); examCandidatesRef.current = data.examCandidates; }
-          if (Array.isArray(data.examSessions)) { setExamSessions(data.examSessions); examSessionsRef.current = data.examSessions; }
-          if (Array.isArray(data.examScores)) { setExamScores(data.examScores); examScoresRef.current = data.examScores; }
-          if (Array.isArray(data.gradStudies)) { setGradStudies(data.gradStudies); gradStudiesRef.current = data.gradStudies; }
-          if (Array.isArray(data.achievements)) { setAchievements(data.achievements); achievementsRef.current = data.achievements; }
-          if (Array.isArray(data.curriculumTargets)) { setCurriculumTargets(data.curriculumTargets); curriculumTargetsRef.current = data.curriculumTargets; }
-
-          // Update local storage backup
-          try {
-            if (data.schoolProfile) localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(data.schoolProfile));
-            if (Array.isArray(data.students)) localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(data.students));
-            if (Array.isArray(data.attendances)) localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(data.attendances));
-            if (Array.isArray(data.warningLetters)) localStorage.setItem(STORAGE_KEYS.WARNING_LETTERS, JSON.stringify(data.warningLetters));
-            if (Array.isArray(data.transferRequests)) localStorage.setItem(STORAGE_KEYS.TRANSFER_REQ, JSON.stringify(data.transferRequests));
-            if (Array.isArray(data.transferOuts)) localStorage.setItem(STORAGE_KEYS.TRANSFER_OUT, JSON.stringify(data.transferOuts));
-            if (Array.isArray(data.transferIns)) localStorage.setItem(STORAGE_KEYS.TRANSFER_IN, JSON.stringify(data.transferIns));
-            if (Array.isArray(data.mutations)) localStorage.setItem(STORAGE_KEYS.MUTATIONS, JSON.stringify(data.mutations));
-            if (Array.isArray(data.examCandidates)) localStorage.setItem(STORAGE_KEYS.EXAM_CANDIDATES, JSON.stringify(data.examCandidates));
-            if (Array.isArray(data.examSessions)) localStorage.setItem(STORAGE_KEYS.EXAM_SESSIONS, JSON.stringify(data.examSessions));
-            if (Array.isArray(data.examScores)) localStorage.setItem(STORAGE_KEYS.EXAM_SCORES, JSON.stringify(data.examScores));
-            if (Array.isArray(data.gradStudies)) localStorage.setItem(STORAGE_KEYS.GRAD_STUDIES, JSON.stringify(data.gradStudies));
-            if (Array.isArray(data.achievements)) localStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(data.achievements));
-            if (Array.isArray(data.curriculumTargets)) localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(data.curriculumTargets));
-          } catch (e) {
-            console.warn('LocalStorage backup sync:', e);
-          }
-
+        if (!snap.exists()) {
           isCloudLoadedRef.current = true;
           setCloudSyncStatus('synced');
-          setLastSyncedAt(new Date());
-
-          setTimeout(() => {
-            isRemoteUpdateRef.current = false;
-          }, 150);
-        } else {
-          // Cloud document does not exist yet (first time initialization)
-          isCloudLoadedRef.current = true;
-          setCloudSyncStatus('synced');
+          return;
         }
+
+        const data = snap.data() as Record<string, any>;
+        const remoteUpdatedAt = data?.updatedAt ? new Date(data.updatedAt).getTime() : 0;
+        const localUpdatedAt = schoolProfileRef.current?.updatedAt ? new Date(schoolProfileRef.current.updatedAt).getTime() : 0;
+
+        if (remoteUpdatedAt > 0 && lastLocalWriteAtRef.current > 0 && remoteUpdatedAt <= lastLocalWriteAtRef.current + 1500) {
+          isCloudLoadedRef.current = true;
+          setCloudSyncStatus('synced');
+          return;
+        }
+
+        if (remoteUpdatedAt > 0 && localUpdatedAt > 0 && remoteUpdatedAt < localUpdatedAt) {
+          isCloudLoadedRef.current = true;
+          setCloudSyncStatus('synced');
+          return;
+        }
+
+        isRemoteUpdateRef.current = true;
+
+        if (data.schoolProfile) {
+          setSchoolProfile(prev => {
+            const merged = {
+              ...prev,
+              ...data.schoolProfile,
+              logoSekolahUrl: data.schoolProfile.logoSekolahUrl || prev.logoSekolahUrl,
+              updatedAt: data.schoolProfile.updatedAt || data.updatedAt || prev.updatedAt,
+            };
+            schoolProfileRef.current = merged;
+            return merged;
+          });
+        }
+        if (Array.isArray(data.students)) { setStudents(data.students); studentsRef.current = data.students; }
+        if (Array.isArray(data.attendances)) { setAttendances(data.attendances); attendancesRef.current = data.attendances; }
+        if (Array.isArray(data.warningLetters)) { setWarningLetters(data.warningLetters); warningLettersRef.current = data.warningLetters; }
+        if (Array.isArray(data.transferRequests)) { setTransferRequests(data.transferRequests); transferRequestsRef.current = data.transferRequests; }
+        if (Array.isArray(data.transferOuts)) { setTransferOuts(data.transferOuts); transferOutsRef.current = data.transferOuts; }
+        if (Array.isArray(data.transferIns)) { setTransferIns(data.transferIns); transferInsRef.current = data.transferIns; }
+        if (Array.isArray(data.mutations)) { setMutations(data.mutations); mutationsRef.current = data.mutations; }
+        if (Array.isArray(data.examCandidates)) { setExamCandidates(data.examCandidates); examCandidatesRef.current = data.examCandidates; }
+        if (Array.isArray(data.examSessions)) { setExamSessions(data.examSessions); examSessionsRef.current = data.examSessions; }
+        if (Array.isArray(data.examScores)) { setExamScores(data.examScores); examScoresRef.current = data.examScores; }
+        if (Array.isArray(data.gradStudies)) { setGradStudies(data.gradStudies); gradStudiesRef.current = data.gradStudies; }
+        if (Array.isArray(data.achievements)) { setAchievements(data.achievements); achievementsRef.current = data.achievements; }
+        if (Array.isArray(data.curriculumTargets)) { setCurriculumTargets(data.curriculumTargets); curriculumTargetsRef.current = data.curriculumTargets; }
+
+        try {
+          if (data.schoolProfile) localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(data.schoolProfile));
+          if (Array.isArray(data.students)) localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(data.students));
+          if (Array.isArray(data.attendances)) localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(data.attendances));
+          if (Array.isArray(data.warningLetters)) localStorage.setItem(STORAGE_KEYS.WARNING_LETTERS, JSON.stringify(data.warningLetters));
+          if (Array.isArray(data.transferRequests)) localStorage.setItem(STORAGE_KEYS.TRANSFER_REQ, JSON.stringify(data.transferRequests));
+          if (Array.isArray(data.transferOuts)) localStorage.setItem(STORAGE_KEYS.TRANSFER_OUT, JSON.stringify(data.transferOuts));
+          if (Array.isArray(data.transferIns)) localStorage.setItem(STORAGE_KEYS.TRANSFER_IN, JSON.stringify(data.transferIns));
+          if (Array.isArray(data.mutations)) localStorage.setItem(STORAGE_KEYS.MUTATIONS, JSON.stringify(data.mutations));
+          if (Array.isArray(data.examCandidates)) localStorage.setItem(STORAGE_KEYS.EXAM_CANDIDATES, JSON.stringify(data.examCandidates));
+          if (Array.isArray(data.examSessions)) localStorage.setItem(STORAGE_KEYS.EXAM_SESSIONS, JSON.stringify(data.examSessions));
+          if (Array.isArray(data.examScores)) localStorage.setItem(STORAGE_KEYS.EXAM_SCORES, JSON.stringify(data.examScores));
+          if (Array.isArray(data.gradStudies)) localStorage.setItem(STORAGE_KEYS.GRAD_STUDIES, JSON.stringify(data.gradStudies));
+          if (Array.isArray(data.achievements)) localStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(data.achievements));
+          if (Array.isArray(data.curriculumTargets)) localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(data.curriculumTargets));
+        } catch (e) {
+          console.warn('LocalStorage backup sync:', e);
+        }
+
+        isCloudLoadedRef.current = true;
+        setCloudSyncStatus('synced');
+        setLastSyncedAt(new Date());
+
+        setTimeout(() => {
+          isRemoteUpdateRef.current = false;
+        }, 150);
       },
       (err) => {
         handleFirestoreError(err, OperationType.GET, 'school_data/main');
         setCloudSyncStatus('error');
-        // If offline, still allow user to work with local data
         isCloudLoadedRef.current = true;
       }
     );
@@ -442,9 +457,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => unsub();
   }, []);
 
-  // 2. Debounced push to Cloud Firebase Firestore when local state changes
   useEffect(() => {
-    // Selalu simpan di LocalStorage sebagai cadangan lokal instan
+    if (isRemoteUpdateRef.current) return;
+    markLocalWrite();
+
     localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(schoolProfile));
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
     localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendances));
@@ -461,13 +477,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(curriculumTargets));
     localStorage.setItem(STORAGE_KEYS.MYSQL_CONFIG, JSON.stringify(mysqlConfig));
 
-    // GUARD 1: JANGAN TIMPA CLOUD sebelum data awal dari Firestore berhasil termuat!
     if (!isCloudLoadedRef.current) {
-      return;
-    }
-
-    // GUARD 2: JANGAN kirim balik data yang baru saja diterima dari onSnapshot!
-    if (isRemoteUpdateRef.current) {
       return;
     }
 
@@ -480,7 +490,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     writeTimeoutRef.current = setTimeout(async () => {
       try {
         const payload = cleanFirestoreData({
-          schoolProfile: schoolProfileRef.current,
+          schoolProfile: {
+            ...schoolProfileRef.current,
+            updatedAt: new Date().toISOString(),
+          },
           students: studentsRef.current,
           attendances: attendancesRef.current,
           warningLetters: warningLettersRef.current,
@@ -505,15 +518,17 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
         setCloudSyncStatus('error');
       }
-    }, 600); // 600ms debounce
+    }, 600);
 
-    // Sync juga ke backend server jika aktif
     try {
       fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          schoolProfile: schoolProfileRef.current,
+          schoolProfile: {
+            ...schoolProfileRef.current,
+            updatedAt: new Date().toISOString(),
+          },
           students: studentsRef.current,
           attendances: attendancesRef.current,
           warningLetters: warningLettersRef.current,
@@ -557,8 +572,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const forceSyncToCloud = async (customPayload?: Record<string, any>): Promise<boolean> => {
     try {
       setCloudSyncStatus('syncing');
+      markLocalWrite();
       const payload = cleanFirestoreData({
-        schoolProfile: customPayload?.schoolProfile || schoolProfileRef.current,
+        schoolProfile: {
+          ...(customPayload?.schoolProfile || schoolProfileRef.current),
+          updatedAt: new Date().toISOString(),
+        },
         students: customPayload?.students || studentsRef.current,
         attendances: customPayload?.attendances || attendancesRef.current,
         warningLetters: customPayload?.warningLetters || warningLettersRef.current,
@@ -586,10 +605,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateSchoolProfile = (updates: Partial<SchoolProfile>) => {
-    let nextProfile: SchoolProfile = { ...schoolProfileRef.current, ...updates };
+    const nextProfile: SchoolProfile = { ...schoolProfileRef.current, ...updates, updatedAt: new Date().toISOString() };
     schoolProfileRef.current = nextProfile;
     setSchoolProfile(prev => {
-      const merged = { ...prev, ...updates };
+      const merged = { ...prev, ...updates, updatedAt: new Date().toISOString() };
       schoolProfileRef.current = merged;
       try {
         localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(merged));
@@ -665,7 +684,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     setTransferOuts(prev => [newCert, ...prev]);
 
-    // Also update student status to mutasi_keluar
     if (certData.studentId) {
       updateStudent(certData.studentId, { statusSiswa: 'mutasi_keluar' });
     }
@@ -707,7 +725,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const replaceExamCandidatesForClass = (className: string, rombel: string, newCandidates: ExamCandidate[]) => {
     setExamCandidates(prev => {
-      // Hilangkan data lama untuk kelas & rombel yang bersangkutan
       const remaining = prev.filter(c => {
         const matchClass = String(c.kelas).trim().toUpperCase() === String(className).trim().toUpperCase();
         const st = students.find(s => s.id === c.studentId);
@@ -886,7 +903,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setStudents(formattedStudents);
       return { added: formattedStudents.length, replaced: students.length };
     } else {
-      // Append: avoid duplicating NIS
       const existingNisSet = new Set(students.map(s => s.nis));
       const newlyAdded = formattedStudents.filter(s => !existingNisSet.has(s.nis));
       setStudents(prev => [...prev, ...newlyAdded]);
@@ -1083,3 +1099,4 @@ export const useSchool = () => {
   }
   return context;
 };
+
