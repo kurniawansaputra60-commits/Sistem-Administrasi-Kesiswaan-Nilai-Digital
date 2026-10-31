@@ -10,12 +10,28 @@ import {
   FileCode,
   ShieldCheck,
   AlertCircle,
+  UploadCloud,
+  DownloadCloud,
+  CheckCircle2,
 } from 'lucide-react';
 
 export const MySQLDatabaseCenter: React.FC = () => {
-  const { mysqlConfig, updateMySQLConfig, testMySQLConnection, downloadMySQLDump, getMySQLDumpText } = useSchool();
+  const {
+    mysqlConfig,
+    updateMySQLConfig,
+    testMySQLConnection,
+    downloadMySQLDump,
+    getMySQLDumpText,
+    students,
+    schoolProfile,
+    importStudentsFromExcel,
+    updateSchoolProfile,
+  } = useSchool();
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [pushing, setPushing] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [showSqlViewer, setShowSqlViewer] = useState(false);
 
@@ -24,9 +40,59 @@ export const MySQLDatabaseCenter: React.FC = () => {
   const handleTestConnection = async () => {
     setTesting(true);
     setTestResult(null);
+    setActionMsg(null);
     const res = await testMySQLConnection();
     setTesting(false);
     setTestResult(res);
+  };
+
+  const handlePushToMySQL = async () => {
+    setPushing(true);
+    setActionMsg(null);
+    try {
+      const res = await fetch('/api/mysql/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: mysqlConfig, students, schoolProfile }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg({ type: 'success', text: data.message });
+      } else {
+        setActionMsg({ type: 'error', text: `Gagal sinkron ke MySQL: ${data.error || 'Terjadi kesalahan'}` });
+      }
+    } catch (err: any) {
+      setActionMsg({ type: 'error', text: `Gagal terhubung ke server: ${err.message}` });
+    } finally {
+      setPushing(false);
+    }
+  };
+
+  const handlePullFromMySQL = async () => {
+    if (!window.confirm('Tarik data dari database MySQL online? Data siswa di aplikasi akan disinkronkan dengan data dari server MySQL.')) return;
+    setPulling(true);
+    setActionMsg(null);
+    try {
+      const res = await fetch('/api/mysql/pull', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: mysqlConfig }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.schoolProfile) updateSchoolProfile(data.schoolProfile);
+        if (Array.isArray(data.students) && data.students.length > 0) {
+          importStudentsFromExcel(data.students, 'replace');
+        }
+        setActionMsg({ type: 'success', text: data.message });
+      } else {
+        setActionMsg({ type: 'error', text: `Gagal menarik data dari MySQL: ${data.error || 'Terjadi kesalahan'}` });
+      }
+    } catch (err: any) {
+      setActionMsg({ type: 'error', text: `Gagal terhubung ke server: ${err.message}` });
+    } finally {
+      setPulling(false);
+    }
   };
 
   const handleCopySql = () => {
@@ -162,6 +228,44 @@ export const MySQLDatabaseCenter: React.FC = () => {
               )}
               <div className="leading-relaxed">
                 <p className="font-semibold">{testResult.message}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Tombol Aksi Sinkronisasi Data Langsung dengan MySQL Live */}
+          <div className="pt-3 border-t border-slate-100 flex flex-wrap gap-2.5">
+            <button
+              onClick={handlePushToMySQL}
+              disabled={pushing || testing}
+              className="flex-1 min-w-[200px] flex items-center justify-center gap-2 px-3.5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              <UploadCloud className={`w-4 h-4 ${pushing ? 'animate-bounce' : ''}`} />
+              <span>{pushing ? 'Mengirim ke MySQL...' : 'Kirim Data ke MySQL Live (Push)'}</span>
+            </button>
+
+            <button
+              onClick={handlePullFromMySQL}
+              disabled={pulling || testing}
+              className="flex-1 min-w-[200px] flex items-center justify-center gap-2 px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              <DownloadCloud className={`w-4 h-4 ${pulling ? 'animate-spin' : ''}`} />
+              <span>{pulling ? 'Menarik dari MySQL...' : 'Tarik Data dari MySQL Live (Pull)'}</span>
+            </button>
+          </div>
+
+          {actionMsg && (
+            <div className={`p-3 rounded-lg text-xs flex items-start gap-2.5 ${
+              actionMsg.type === 'success'
+                ? 'bg-emerald-50 border border-emerald-300 text-emerald-900'
+                : 'bg-rose-50 border border-rose-300 text-rose-900'
+            }`}>
+              {actionMsg.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              )}
+              <div className="leading-relaxed">
+                <p className="font-semibold">{actionMsg.text}</p>
               </div>
             </div>
           )}

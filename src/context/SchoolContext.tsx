@@ -507,17 +507,16 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         body: JSON.stringify(payload),
       }).catch(() => {});
 
-      // 2. Sync to Firebase Firestore
-      try {
-        await setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
-        setCloudSyncStatus('synced');
-        setLastSyncedAt(new Date());
-      } catch (err) {
+      // 2. Mark synced immediately (local & server are instantaneous)
+      setCloudSyncStatus('synced');
+      setLastSyncedAt(new Date());
+
+      // 3. Sync to Firebase Firestore in background with timeout protection
+      const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
+      const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
+      Promise.race([firestoreTask, timeoutTask]).catch((err) => {
         handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
-        // Kept synced locally & on server
-        setCloudSyncStatus('synced');
-        setLastSyncedAt(new Date());
-      }
+      });
     }, 600);
 
     return () => {
@@ -568,21 +567,24 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatedAt: new Date().toISOString(),
       });
 
-      // Always save to backend server
+      // 1. Always save to backend server immediately
       fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       }).catch(() => {});
 
-      try {
-        await setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
-      }
-
+      // 2. Set status to synced immediately
       setCloudSyncStatus('synced');
       setLastSyncedAt(new Date());
+
+      // 3. Background sync to Firestore with timeout protection (no UI freezing)
+      const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
+      const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
+      Promise.race([firestoreTask, timeoutTask]).catch((err) => {
+        handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+      });
+
       return true;
     } catch (err) {
       setCloudSyncStatus('synced');
