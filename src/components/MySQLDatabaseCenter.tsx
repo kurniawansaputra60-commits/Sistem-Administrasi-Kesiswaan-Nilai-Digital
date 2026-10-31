@@ -246,14 +246,23 @@ export const MySQLDatabaseCenter: React.FC = () => {
       </div>
 
       {/* Instructions on importing to phpMyAdmin / MySQL */}
-      <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-2">
-        <h4 className="font-bold text-slate-900">Cara Mengimpor ke MySQL Server Lokal / Sekolah (phpMyAdmin / XAMPP / MariaDB):</h4>
-        <ol className="list-decimal pl-5 space-y-1">
-          <li>Klik tombol <strong>"Unduh Script MySQL (.sql)"</strong> di atas untuk mengunduh seluruh skrip tabel &amp; data siswa.</li>
-          <li>Buka <strong>phpMyAdmin</strong> pada browser Anda (biasanya di <code className="font-mono bg-slate-200 px-1 py-0.5 rounded">http://localhost/phpmyadmin</code>).</li>
-          <li>Klik tab <strong>"Import"</strong> pada menu atas.</li>
-          <li>Pilih file <code className="font-mono bg-slate-200 px-1 py-0.5 rounded">.sql</code> yang baru saja diunduh, lalu klik tombol <strong>"Kirim / Go"</strong>.</li>
-          <li>Database <code className="font-mono font-bold">db_kesiswaan_sekolah</code> beserta seluruh data Format S-1 s/d S-20 akan langsung terbuat dan terisi otomatis.</li>
+      <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-3">
+        <div className="flex items-center gap-2 text-slate-900 font-bold text-sm border-b border-slate-200 pb-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <span>Panduan Import ke phpMyAdmin (cPanel Hosting / JagoanHosting / XAMPP):</span>
+        </div>
+        <p className="text-slate-600 leading-relaxed">
+          Agar tidak terjadi kendala <code className="font-mono bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded font-bold">#1046 No database selected</code>, ikuti urutan langkah standar phpMyAdmin berikut:
+        </p>
+        <ol className="list-decimal pl-5 space-y-1.5 leading-relaxed">
+          <li>Unduh file dengan mengklik tombol <strong>"Unduh Script MySQL (.sql)"</strong> di atas.</li>
+          <li>Buka <strong>phpMyAdmin</strong> di cPanel hosting atau localhost Anda.</li>
+          <li>
+            <strong>LANGKAH KUNCI:</strong> Pada menu sebelah kiri phpMyAdmin, <strong>KLIK NAMA DATABASE</strong> Anda terlebih dahulu (misalnya <code className="font-mono font-bold text-emerald-800 bg-emerald-50 px-1 rounded">db_kesiswaan</code> atau <code className="font-mono font-bold text-emerald-800 bg-emerald-50 px-1 rounded">u1234567_kesiswaan</code>) agar database tersebut aktif terbuka.
+          </li>
+          <li>Setelah database terbuka, klik menu <strong>"Import" / "Impor"</strong> di tab bagian atas.</li>
+          <li>Pilih file <code className="font-mono bg-slate-200 px-1 py-0.5 rounded">.sql</code> yang telah Anda unduh, lalu klik tombol <strong>"Kirim" / "Go"</strong>.</li>
+          <li>Semua 11 tabel kesiswaan resmi (siswa, profil sekolah, absensi, mutasi, ujian, kelulusan, kurikulum) beserta seluruh 270+ data siswa akan langsung terisi sempurna tanpa error.</li>
         </ol>
       </div>
     </div>

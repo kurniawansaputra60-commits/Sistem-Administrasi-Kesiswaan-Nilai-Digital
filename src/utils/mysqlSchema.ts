@@ -37,8 +37,15 @@ export function generateMySQLDump(
   sql.push(`-- Waktu Ekspor: ${new Date().toISOString()}`);
   sql.push(`-- ==========================================================`);
   sql.push(``);
-  sql.push(`CREATE DATABASE IF NOT EXISTS \`db_kesiswaan_sekolah\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
-  sql.push(`USE \`db_kesiswaan_sekolah\`;`);
+  sql.push(`SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";`);
+  sql.push(`SET time_zone = "+00:00";`);
+  sql.push(``);
+  sql.push(`-- PANDUAN IMPORT PHPMYADMIN (cPanel / JagoanHosting / XAMPP):`);
+  sql.push(`-- 1. Klik nama database Anda di panel sebelah kiri phpMyAdmin sebelum mengimpor.`);
+  sql.push(`-- 2. Klik tab "Import" / "Impor", pilih file ini, lalu klik tombol "Kirim / Go".`);
+  sql.push(`-- (Opsional: Jika menggunakan MySQL CLI / Terminal, aktifkan 2 baris di bawah):`);
+  sql.push(`-- CREATE DATABASE IF NOT EXISTS \`db_kesiswaan_sekolah\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+  sql.push(`-- USE \`db_kesiswaan_sekolah\`;`);
   sql.push(``);
 
   // 1. Table sekolah_profile
@@ -311,8 +318,10 @@ export function generateMySQLDump(
   sql.push(`  \`jumlah_siswa_belum_tuntas\` INT NOT NULL,`);
   sql.push(`  \`catatan_hambatan\` TEXT`);
   sql.push(`) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
-  sql.push(``);
+  sql.push(`COMMIT;`);
+  sql.push(`-- ==========================================================`);
   sql.push(`-- SELESAI SCRIPT DUMP MYSQL`);
+  sql.push(`-- ==========================================================`);
 
   return sql.join('\n');
 }
