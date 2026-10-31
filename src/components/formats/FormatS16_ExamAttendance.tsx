@@ -32,7 +32,7 @@ export const FormatS16_ExamAttendance: React.FC = () => {
   };
 
   const hadirCount = currentSession?.participants.filter(p => p.statusHadir === 'HADIR').length || 0;
-  const absenCount = currentSession?.participants.filter(p => p.statusHadir === 'TIDAK_HADIR').length || 0;
+  const absenCount = currentSession?.participants.filter(p => p.statusHadir === 'TIDAK_HADIR' || p.statusHadir === 'TIDAK HADIR').length || 0;
   const totalCount = currentSession?.participants.length || 0;
 
   return (

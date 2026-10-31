@@ -182,6 +182,7 @@ export interface StudentMutationRecord {
   jenisMutasi: 'MASUK' | 'KELUAR';
   tanggalMutasi: string;
   kelas: string;
+  rombel?: string;
   semester: '1' | '2';
   sekolahAsalTujuan: string;
   alasanMutasi: string;
@@ -213,9 +214,10 @@ export interface ExamParticipant {
   nomorPeserta: string;
   namaLengkap: string;
   jenisKelamin: Gender;
-  statusHadir: 'HADIR' | 'TIDAK HADIR' | 'IZIN' | 'SAKIT';
+  statusHadir: 'HADIR' | 'TIDAK HADIR' | 'TIDAK_HADIR' | 'IZIN' | 'SAKIT';
   nomorMeja?: string;
   tandaTangan?: boolean;
+  alasanAbsen?: string;
 }
 
 export interface ExamSession {

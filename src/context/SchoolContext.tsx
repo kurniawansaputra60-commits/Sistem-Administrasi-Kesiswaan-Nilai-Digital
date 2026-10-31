@@ -204,7 +204,7 @@ const applyRemoteSnapshot = (data: any, setters: {
   setCurriculumTargets: React.Dispatch<React.SetStateAction<CurriculumTargetRecord[]>>;
 }) => {
   const remoteUpdatedAt = readTimestamp(data?.updatedAt);
-  const localUpdatedAt = readTimestamp(safeRead(STORAGE_KEYS.PROFILE, {}).updatedAt);
+  const localUpdatedAt = readTimestamp(safeRead<Record<string, any>>(STORAGE_KEYS.PROFILE, {}).updatedAt);
 
   if (remoteUpdatedAt > 0 && localUpdatedAt > 0 && remoteUpdatedAt < localUpdatedAt) {
     return false;
@@ -352,7 +352,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         const data = snap.data() as Record<string, any>;
         const remoteUpdatedAt = readTimestamp(data?.updatedAt);
-        const localUpdatedAt = readTimestamp(safeRead(STORAGE_KEYS.PROFILE, {}).updatedAt);
+        const localUpdatedAt = readTimestamp(safeRead<Record<string, any>>(STORAGE_KEYS.PROFILE, {}).updatedAt);
 
         const canApplyRemote = !(
           remoteUpdatedAt > 0 &&
