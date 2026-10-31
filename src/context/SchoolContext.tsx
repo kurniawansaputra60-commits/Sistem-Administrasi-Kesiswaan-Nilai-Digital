@@ -82,54 +82,44 @@ interface SchoolContextType {
   curriculumTargets: CurriculumTargetRecord[];
   mysqlConfig: MySQLConfig;
 
-  // Real-time Cloud Firebase Firestore Status
   cloudSyncStatus: 'initial_loading' | 'synced' | 'syncing' | 'error';
   lastSyncedAt: Date | null;
   forceSyncToCloud: () => Promise<boolean>;
 
-  // Actions
   updateSchoolProfile: (updates: Partial<SchoolProfile>) => void;
   addStudent: (student: Omit<Student, 'id'>) => string;
   updateStudent: (id: string, updates: Partial<Student>) => void;
   deleteStudent: (id: string) => void;
 
-  // Absensi & S-10 Panggilan Ortu
   saveAttendance: (record: DailyAttendanceRecord) => void;
   addWarningLetter: (letter: Omit<AbsenceWarningLetter, 'id'>) => void;
   deleteWarningLetter: (id: string) => void;
 
-  // Mutasi S-12, S-13, S-14, PS-14a
   addTransferRequest: (req: Omit<TransferRequestLetter, 'id'>) => void;
   addTransferOut: (cert: Omit<TransferOutCertificate, 'id'>) => void;
   addTransferIn: (conf: Omit<TransferInConfirmation, 'id'>) => void;
   addMutation: (record: Omit<StudentMutationRecord, 'id'>) => void;
   deleteMutation: (id: string) => void;
 
-  // Ujian S-15, S-16, S-17
   addExamCandidate: (cand: Omit<ExamCandidate, 'id'>) => void;
   updateExamCandidate: (id: string, updates: Partial<ExamCandidate>) => void;
   replaceExamCandidatesForClass: (className: string, rombel: string, candidates: ExamCandidate[]) => void;
   saveExamSession: (session: ExamSession) => void;
   updateExamScore: (record: ExamScoreRecord) => void;
 
-  // Kelulusan & Lanjutan Studi S-18, S-19, S-20
   addGraduateStudy: (study: Omit<GraduateStudyRecord, 'id'>) => void;
   updateGraduateStudy: (id: string, updates: Partial<GraduateStudyRecord>) => void;
   updateStudentGrades: (studentId: string, semesterKey: string, grades: SubjectGrade[]) => void;
   updateStudentPromotion: (studentId: string, promotion: PromotionRecord) => void;
   batchPromoteClass: (fromClass: string, toClass: string, status: 'Naik ke Kelas' | 'Lulus') => void;
 
-  // Prestasi PS-21 & PS-22
   addAchievement: (rec: Omit<AchievementRecord, 'id'>) => void;
   deleteAchievement: (id: string) => void;
 
-  // Kurikulum PS-23 & PS-24
   saveCurriculumTarget: (record: CurriculumTargetRecord) => void;
 
-  // Excel Import & Export
   importStudentsFromExcel: (imported: Partial<Student>[], mode: 'append' | 'replace') => { added: number; replaced: number };
 
-  // MySQL & Backup
   updateMySQLConfig: (updates: Partial<MySQLConfig>) => void;
   testMySQLConnection: () => Promise<{ success: boolean; message: string }>;
   getMySQLDumpText: () => string;
@@ -182,7 +172,6 @@ const clearSchoolStorage = () => {
   });
 };
 
-// Helper to safely strip undefined values and sanitize payload for Firestore
 const cleanFirestoreData = (data: any): any => {
   return JSON.parse(
     JSON.stringify(data, (_, value) => {
@@ -222,31 +211,18 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
 
   const [students, setStudents] = useState<Student[]>(() => safeRead(STORAGE_KEYS.STUDENTS, initialStudents));
-
   const [attendances, setAttendances] = useState<DailyAttendanceRecord[]>(() => safeRead(STORAGE_KEYS.ATTENDANCE, initialDailyAttendance));
-
   const [warningLetters, setWarningLetters] = useState<AbsenceWarningLetter[]>(() => safeRead(STORAGE_KEYS.WARNING_LETTERS, initialWarningLetters));
-
   const [transferRequests, setTransferRequests] = useState<TransferRequestLetter[]>(() => safeRead(STORAGE_KEYS.TRANSFER_REQ, initialTransferRequests));
-
   const [transferOuts, setTransferOuts] = useState<TransferOutCertificate[]>(() => safeRead(STORAGE_KEYS.TRANSFER_OUT, initialTransferOuts));
-
   const [transferIns, setTransferIns] = useState<TransferInConfirmation[]>(() => safeRead(STORAGE_KEYS.TRANSFER_IN, initialTransferIns));
-
   const [mutations, setMutations] = useState<StudentMutationRecord[]>(() => safeRead(STORAGE_KEYS.MUTATIONS, initialStudentMutations));
-
   const [examCandidates, setExamCandidates] = useState<ExamCandidate[]>(() => safeRead(STORAGE_KEYS.EXAM_CANDIDATES, initialExamCandidates));
-
   const [examSessions, setExamSessions] = useState<ExamSession[]>(() => safeRead(STORAGE_KEYS.EXAM_SESSIONS, initialExamSessions));
-
   const [examScores, setExamScores] = useState<ExamScoreRecord[]>(() => safeRead(STORAGE_KEYS.EXAM_SCORES, initialExamScores));
-
   const [gradStudies, setGradStudies] = useState<GraduateStudyRecord[]>(() => safeRead(STORAGE_KEYS.GRAD_STUDIES, initialGradStudies));
-
   const [achievements, setAchievements] = useState<AchievementRecord[]>(() => safeRead(STORAGE_KEYS.ACHIEVEMENTS, initialAchievements));
-
   const [curriculumTargets, setCurriculumTargets] = useState<CurriculumTargetRecord[]>(() => safeRead(STORAGE_KEYS.CURRICULUM, initialCurriculumTargets));
-
   const [mysqlConfig, setMysqlConfig] = useState<MySQLConfig>(() => safeRead(STORAGE_KEYS.MYSQL_CONFIG, initialMySQLConfig));
 
   const schoolProfileRef = useRef<SchoolProfile>(schoolProfile);
@@ -331,6 +307,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             return merged;
           });
         }
+
         if (Array.isArray(data.students)) { setStudents(data.students); studentsRef.current = data.students; }
         if (Array.isArray(data.attendances)) { setAttendances(data.attendances); attendancesRef.current = data.attendances; }
         if (Array.isArray(data.warningLetters)) { setWarningLetters(data.warningLetters); warningLettersRef.current = data.warningLetters; }
@@ -436,7 +413,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
 
         await setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
-
         setCloudSyncStatus('synced');
         setLastSyncedAt(new Date());
       } catch (err) {
@@ -444,32 +420,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setCloudSyncStatus('error');
       }
     }, 600);
-
-    try {
-      fetch('/api/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          schoolProfile: {
-            ...schoolProfileRef.current,
-            updatedAt: new Date().toISOString(),
-          },
-          students: studentsRef.current,
-          attendances: attendancesRef.current,
-          warningLetters: warningLettersRef.current,
-          transferRequests: transferRequestsRef.current,
-          transferOuts: transferOutsRef.current,
-          transferIns: transferInsRef.current,
-          mutations: mutationsRef.current,
-          examCandidates: examCandidatesRef.current,
-          examSessions: examSessionsRef.current,
-          examScores: examScoresRef.current,
-          gradStudies: gradStudiesRef.current,
-          achievements: achievementsRef.current,
-          curriculumTargets: curriculumTargetsRef.current,
-        }),
-      }).catch(() => {});
-    } catch {}
 
     return () => {
       if (writeTimeoutRef.current) {
@@ -561,9 +511,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateStudent = (id: string, updates: Partial<Student>) => {
-    setStudents(prev =>
-      prev.map(s => (s.id === id ? { ...s, ...updates } : s))
-    );
+    setStudents(prev => prev.map(s => (s.id === id ? { ...s, ...updates } : s)));
   };
 
   const deleteStudent = (id: string) => {
@@ -583,10 +531,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addWarningLetter = (letterData: Omit<AbsenceWarningLetter, 'id'>) => {
-    const newLetter: AbsenceWarningLetter = {
-      ...letterData,
-      id: `letter-${Date.now()}`,
-    };
+    const newLetter: AbsenceWarningLetter = { ...letterData, id: `letter-${Date.now()}` };
     setWarningLetters(prev => [newLetter, ...prev]);
   };
 
@@ -595,38 +540,23 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addTransferRequest = (reqData: Omit<TransferRequestLetter, 'id'>) => {
-    const newReq: TransferRequestLetter = {
-      ...reqData,
-      id: `treq-${Date.now()}`,
-    };
+    const newReq: TransferRequestLetter = { ...reqData, id: `treq-${Date.now()}` };
     setTransferRequests(prev => [newReq, ...prev]);
   };
 
   const addTransferOut = (certData: Omit<TransferOutCertificate, 'id'>) => {
-    const newCert: TransferOutCertificate = {
-      ...certData,
-      id: `tout-${Date.now()}`,
-    };
+    const newCert: TransferOutCertificate = { ...certData, id: `tout-${Date.now()}` };
     setTransferOuts(prev => [newCert, ...prev]);
-
-    if (certData.studentId) {
-      updateStudent(certData.studentId, { statusSiswa: 'mutasi_keluar' });
-    }
+    if (certData.studentId) updateStudent(certData.studentId, { statusSiswa: 'mutasi_keluar' });
   };
 
   const addTransferIn = (confData: Omit<TransferInConfirmation, 'id'>) => {
-    const newConf: TransferInConfirmation = {
-      ...confData,
-      id: `tin-${Date.now()}`,
-    };
+    const newConf: TransferInConfirmation = { ...confData, id: `tin-${Date.now()}` };
     setTransferIns(prev => [newConf, ...prev]);
   };
 
   const addMutation = (record: Omit<StudentMutationRecord, 'id'>) => {
-    const newRecord: StudentMutationRecord = {
-      ...record,
-      id: `mut-${Date.now()}`,
-    };
+    const newRecord: StudentMutationRecord = { ...record, id: `mut-${Date.now()}` };
     setMutations(prev => [newRecord, ...prev]);
   };
 
@@ -635,17 +565,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addExamCandidate = (candData: Omit<ExamCandidate, 'id'>) => {
-    const newCand: ExamCandidate = {
-      ...candData,
-      id: `cand-${Date.now()}`,
-    };
+    const newCand: ExamCandidate = { ...candData, id: `cand-${Date.now()}` };
     setExamCandidates(prev => [newCand, ...prev]);
   };
 
   const updateExamCandidate = (id: string, updates: Partial<ExamCandidate>) => {
-    setExamCandidates(prev =>
-      prev.map(c => (c.id === id ? { ...c, ...updates } : c))
-    );
+    setExamCandidates(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)));
   };
 
   const replaceExamCandidatesForClass = (className: string, rombel: string, newCandidates: ExamCandidate[]) => {
@@ -685,17 +610,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addGraduateStudy = (studyData: Omit<GraduateStudyRecord, 'id'>) => {
-    const newStudy: GraduateStudyRecord = {
-      ...studyData,
-      id: `grad-${Date.now()}`,
-    };
+    const newStudy: GraduateStudyRecord = { ...studyData, id: `grad-${Date.now()}` };
     setGradStudies(prev => [newStudy, ...prev]);
   };
 
   const updateGraduateStudy = (id: string, updates: Partial<GraduateStudyRecord>) => {
-    setGradStudies(prev =>
-      prev.map(g => (g.id === id ? { ...g, ...updates } : g))
-    );
+    setGradStudies(prev => prev.map(g => (g.id === id ? { ...g, ...updates } : g)));
   };
 
   const updateStudentGrades = (studentId: string, semesterKey: string, grades: SubjectGrade[]) => {
@@ -717,10 +637,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStudents(prev =>
       prev.map(s => {
         if (s.id !== studentId) return s;
-        return {
-          ...s,
-          riwayatKenaikan: promotion,
-        };
+        return { ...s, riwayatKenaikan: promotion };
       })
     );
   };
@@ -745,10 +662,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addAchievement = (rec: Omit<AchievementRecord, 'id'>) => {
-    const newAch: AchievementRecord = {
-      ...rec,
-      id: `ach-${Date.now()}`,
-    };
+    const newAch: AchievementRecord = { ...rec, id: `ach-${Date.now()}` };
     setAchievements(prev => [newAch, ...prev]);
   };
 
@@ -768,10 +682,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
-  const importStudentsFromExcel = (
-    importedList: Partial<Student>[],
-    mode: 'append' | 'replace'
-  ): { added: number; replaced: number } => {
+  const importStudentsFromExcel = (importedList: Partial<Student>[], mode: 'append' | 'replace'): { added: number; replaced: number } => {
     const formattedStudents: Student[] = importedList.map((item, idx) => {
       const id = item.id || `stu-imp-${Date.now()}-${idx}`;
       return {
@@ -827,12 +738,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (mode === 'replace') {
       setStudents(formattedStudents);
       return { added: formattedStudents.length, replaced: students.length };
-    } else {
-      const existingNisSet = new Set(students.map(s => s.nis));
-      const newlyAdded = formattedStudents.filter(s => !existingNisSet.has(s.nis));
-      setStudents(prev => [...prev, ...newlyAdded]);
-      return { added: newlyAdded.length, replaced: 0 };
     }
+
+    const existingNisSet = new Set(students.map(s => s.nis));
+    const newlyAdded = formattedStudents.filter(s => !existingNisSet.has(s.nis));
+    setStudents(prev => [...prev, ...newlyAdded]);
+    return { added: newlyAdded.length, replaced: 0 };
   };
 
   const updateMySQLConfig = (updates: Partial<MySQLConfig>) => {
@@ -850,10 +761,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (data.success) {
         updateMySQLConfig({ isConnected: true, lastSync: new Date().toLocaleTimeString('id-ID') });
         return { success: true, message: data.message };
-      } else {
-        updateMySQLConfig({ isConnected: false });
-        return { success: false, message: data.message };
       }
+      updateMySQLConfig({ isConnected: false });
+      return { success: false, message: data.message };
     } catch (err: any) {
       updateMySQLConfig({ isConnected: false });
       return {
