@@ -159,6 +159,29 @@ const STORAGE_KEYS = {
   MYSQL_CONFIG: 'adm_sekolah_mysql_config_v3',
 };
 
+const safeRead = <T,>(key: string, fallback: T): T => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const safeWrite = (key: string, value: unknown) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    console.warn('localStorage write failed:', err);
+  }
+};
+
+const clearSchoolStorage = () => {
+  Object.values(STORAGE_KEYS).forEach((key) => {
+    localStorage.removeItem(key);
+  });
+};
+
 // Helper to safely strip undefined values and sanitize payload for Firestore
 const cleanFirestoreData = (data: any): any => {
   return JSON.parse(
@@ -198,131 +221,33 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
-  const [students, setStudents] = useState<Student[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-      return saved ? JSON.parse(saved) : initialStudents;
-    } catch {
-      return initialStudents;
-    }
-  });
+  const [students, setStudents] = useState<Student[]>(() => safeRead(STORAGE_KEYS.STUDENTS, initialStudents));
 
-  const [attendances, setAttendances] = useState<DailyAttendanceRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
-      return saved ? JSON.parse(saved) : initialDailyAttendance;
-    } catch {
-      return initialDailyAttendance;
-    }
-  });
+  const [attendances, setAttendances] = useState<DailyAttendanceRecord[]>(() => safeRead(STORAGE_KEYS.ATTENDANCE, initialDailyAttendance));
 
-  const [warningLetters, setWarningLetters] = useState<AbsenceWarningLetter[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.WARNING_LETTERS);
-      return saved ? JSON.parse(saved) : initialWarningLetters;
-    } catch {
-      return initialWarningLetters;
-    }
-  });
+  const [warningLetters, setWarningLetters] = useState<AbsenceWarningLetter[]>(() => safeRead(STORAGE_KEYS.WARNING_LETTERS, initialWarningLetters));
 
-  const [transferRequests, setTransferRequests] = useState<TransferRequestLetter[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.TRANSFER_REQ);
-      return saved ? JSON.parse(saved) : initialTransferRequests;
-    } catch {
-      return initialTransferRequests;
-    }
-  });
+  const [transferRequests, setTransferRequests] = useState<TransferRequestLetter[]>(() => safeRead(STORAGE_KEYS.TRANSFER_REQ, initialTransferRequests));
 
-  const [transferOuts, setTransferOuts] = useState<TransferOutCertificate[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.TRANSFER_OUT);
-      return saved ? JSON.parse(saved) : initialTransferOuts;
-    } catch {
-      return initialTransferOuts;
-    }
-  });
+  const [transferOuts, setTransferOuts] = useState<TransferOutCertificate[]>(() => safeRead(STORAGE_KEYS.TRANSFER_OUT, initialTransferOuts));
 
-  const [transferIns, setTransferIns] = useState<TransferInConfirmation[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.TRANSFER_IN);
-      return saved ? JSON.parse(saved) : initialTransferIns;
-    } catch {
-      return initialTransferIns;
-    }
-  });
+  const [transferIns, setTransferIns] = useState<TransferInConfirmation[]>(() => safeRead(STORAGE_KEYS.TRANSFER_IN, initialTransferIns));
 
-  const [mutations, setMutations] = useState<StudentMutationRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.MUTATIONS);
-      return saved ? JSON.parse(saved) : initialStudentMutations;
-    } catch {
-      return initialStudentMutations;
-    }
-  });
+  const [mutations, setMutations] = useState<StudentMutationRecord[]>(() => safeRead(STORAGE_KEYS.MUTATIONS, initialStudentMutations));
 
-  const [examCandidates, setExamCandidates] = useState<ExamCandidate[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.EXAM_CANDIDATES);
-      return saved ? JSON.parse(saved) : initialExamCandidates;
-    } catch {
-      return initialExamCandidates;
-    }
-  });
+  const [examCandidates, setExamCandidates] = useState<ExamCandidate[]>(() => safeRead(STORAGE_KEYS.EXAM_CANDIDATES, initialExamCandidates));
 
-  const [examSessions, setExamSessions] = useState<ExamSession[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.EXAM_SESSIONS);
-      return saved ? JSON.parse(saved) : initialExamSessions;
-    } catch {
-      return initialExamSessions;
-    }
-  });
+  const [examSessions, setExamSessions] = useState<ExamSession[]>(() => safeRead(STORAGE_KEYS.EXAM_SESSIONS, initialExamSessions));
 
-  const [examScores, setExamScores] = useState<ExamScoreRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.EXAM_SCORES);
-      return saved ? JSON.parse(saved) : initialExamScores;
-    } catch {
-      return initialExamScores;
-    }
-  });
+  const [examScores, setExamScores] = useState<ExamScoreRecord[]>(() => safeRead(STORAGE_KEYS.EXAM_SCORES, initialExamScores));
 
-  const [gradStudies, setGradStudies] = useState<GraduateStudyRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.GRAD_STUDIES);
-      return saved ? JSON.parse(saved) : initialGradStudies;
-    } catch {
-      return initialGradStudies;
-    }
-  });
+  const [gradStudies, setGradStudies] = useState<GraduateStudyRecord[]>(() => safeRead(STORAGE_KEYS.GRAD_STUDIES, initialGradStudies));
 
-  const [achievements, setAchievements] = useState<AchievementRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS);
-      return saved ? JSON.parse(saved) : initialAchievements;
-    } catch {
-      return initialAchievements;
-    }
-  });
+  const [achievements, setAchievements] = useState<AchievementRecord[]>(() => safeRead(STORAGE_KEYS.ACHIEVEMENTS, initialAchievements));
 
-  const [curriculumTargets, setCurriculumTargets] = useState<CurriculumTargetRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.CURRICULUM);
-      return saved ? JSON.parse(saved) : initialCurriculumTargets;
-    } catch {
-      return initialCurriculumTargets;
-    }
-  });
+  const [curriculumTargets, setCurriculumTargets] = useState<CurriculumTargetRecord[]>(() => safeRead(STORAGE_KEYS.CURRICULUM, initialCurriculumTargets));
 
-  const [mysqlConfig, setMysqlConfig] = useState<MySQLConfig>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.MYSQL_CONFIG);
-      return saved ? JSON.parse(saved) : initialMySQLConfig;
-    } catch {
-      return initialMySQLConfig;
-    }
-  });
+  const [mysqlConfig, setMysqlConfig] = useState<MySQLConfig>(() => safeRead(STORAGE_KEYS.MYSQL_CONFIG, initialMySQLConfig));
 
   const schoolProfileRef = useRef<SchoolProfile>(schoolProfile);
   const studentsRef = useRef<Student[]>(students);
@@ -421,20 +346,20 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (Array.isArray(data.curriculumTargets)) { setCurriculumTargets(data.curriculumTargets); curriculumTargetsRef.current = data.curriculumTargets; }
 
         try {
-          if (data.schoolProfile) localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(data.schoolProfile));
-          if (Array.isArray(data.students)) localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(data.students));
-          if (Array.isArray(data.attendances)) localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(data.attendances));
-          if (Array.isArray(data.warningLetters)) localStorage.setItem(STORAGE_KEYS.WARNING_LETTERS, JSON.stringify(data.warningLetters));
-          if (Array.isArray(data.transferRequests)) localStorage.setItem(STORAGE_KEYS.TRANSFER_REQ, JSON.stringify(data.transferRequests));
-          if (Array.isArray(data.transferOuts)) localStorage.setItem(STORAGE_KEYS.TRANSFER_OUT, JSON.stringify(data.transferOuts));
-          if (Array.isArray(data.transferIns)) localStorage.setItem(STORAGE_KEYS.TRANSFER_IN, JSON.stringify(data.transferIns));
-          if (Array.isArray(data.mutations)) localStorage.setItem(STORAGE_KEYS.MUTATIONS, JSON.stringify(data.mutations));
-          if (Array.isArray(data.examCandidates)) localStorage.setItem(STORAGE_KEYS.EXAM_CANDIDATES, JSON.stringify(data.examCandidates));
-          if (Array.isArray(data.examSessions)) localStorage.setItem(STORAGE_KEYS.EXAM_SESSIONS, JSON.stringify(data.examSessions));
-          if (Array.isArray(data.examScores)) localStorage.setItem(STORAGE_KEYS.EXAM_SCORES, JSON.stringify(data.examScores));
-          if (Array.isArray(data.gradStudies)) localStorage.setItem(STORAGE_KEYS.GRAD_STUDIES, JSON.stringify(data.gradStudies));
-          if (Array.isArray(data.achievements)) localStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(data.achievements));
-          if (Array.isArray(data.curriculumTargets)) localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(data.curriculumTargets));
+          if (data.schoolProfile) safeWrite(STORAGE_KEYS.PROFILE, data.schoolProfile);
+          if (Array.isArray(data.students)) safeWrite(STORAGE_KEYS.STUDENTS, data.students);
+          if (Array.isArray(data.attendances)) safeWrite(STORAGE_KEYS.ATTENDANCE, data.attendances);
+          if (Array.isArray(data.warningLetters)) safeWrite(STORAGE_KEYS.WARNING_LETTERS, data.warningLetters);
+          if (Array.isArray(data.transferRequests)) safeWrite(STORAGE_KEYS.TRANSFER_REQ, data.transferRequests);
+          if (Array.isArray(data.transferOuts)) safeWrite(STORAGE_KEYS.TRANSFER_OUT, data.transferOuts);
+          if (Array.isArray(data.transferIns)) safeWrite(STORAGE_KEYS.TRANSFER_IN, data.transferIns);
+          if (Array.isArray(data.mutations)) safeWrite(STORAGE_KEYS.MUTATIONS, data.mutations);
+          if (Array.isArray(data.examCandidates)) safeWrite(STORAGE_KEYS.EXAM_CANDIDATES, data.examCandidates);
+          if (Array.isArray(data.examSessions)) safeWrite(STORAGE_KEYS.EXAM_SESSIONS, data.examSessions);
+          if (Array.isArray(data.examScores)) safeWrite(STORAGE_KEYS.EXAM_SCORES, data.examScores);
+          if (Array.isArray(data.gradStudies)) safeWrite(STORAGE_KEYS.GRAD_STUDIES, data.gradStudies);
+          if (Array.isArray(data.achievements)) safeWrite(STORAGE_KEYS.ACHIEVEMENTS, data.achievements);
+          if (Array.isArray(data.curriculumTargets)) safeWrite(STORAGE_KEYS.CURRICULUM, data.curriculumTargets);
         } catch (e) {
           console.warn('LocalStorage backup sync:', e);
         }
@@ -461,21 +386,21 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (isRemoteUpdateRef.current) return;
     markLocalWrite();
 
-    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(schoolProfile));
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
-    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendances));
-    localStorage.setItem(STORAGE_KEYS.WARNING_LETTERS, JSON.stringify(warningLetters));
-    localStorage.setItem(STORAGE_KEYS.TRANSFER_REQ, JSON.stringify(transferRequests));
-    localStorage.setItem(STORAGE_KEYS.TRANSFER_OUT, JSON.stringify(transferOuts));
-    localStorage.setItem(STORAGE_KEYS.TRANSFER_IN, JSON.stringify(transferIns));
-    localStorage.setItem(STORAGE_KEYS.MUTATIONS, JSON.stringify(mutations));
-    localStorage.setItem(STORAGE_KEYS.EXAM_CANDIDATES, JSON.stringify(examCandidates));
-    localStorage.setItem(STORAGE_KEYS.EXAM_SESSIONS, JSON.stringify(examSessions));
-    localStorage.setItem(STORAGE_KEYS.EXAM_SCORES, JSON.stringify(examScores));
-    localStorage.setItem(STORAGE_KEYS.GRAD_STUDIES, JSON.stringify(gradStudies));
-    localStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(achievements));
-    localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(curriculumTargets));
-    localStorage.setItem(STORAGE_KEYS.MYSQL_CONFIG, JSON.stringify(mysqlConfig));
+    safeWrite(STORAGE_KEYS.PROFILE, schoolProfile);
+    safeWrite(STORAGE_KEYS.STUDENTS, students);
+    safeWrite(STORAGE_KEYS.ATTENDANCE, attendances);
+    safeWrite(STORAGE_KEYS.WARNING_LETTERS, warningLetters);
+    safeWrite(STORAGE_KEYS.TRANSFER_REQ, transferRequests);
+    safeWrite(STORAGE_KEYS.TRANSFER_OUT, transferOuts);
+    safeWrite(STORAGE_KEYS.TRANSFER_IN, transferIns);
+    safeWrite(STORAGE_KEYS.MUTATIONS, mutations);
+    safeWrite(STORAGE_KEYS.EXAM_CANDIDATES, examCandidates);
+    safeWrite(STORAGE_KEYS.EXAM_SESSIONS, examSessions);
+    safeWrite(STORAGE_KEYS.EXAM_SCORES, examScores);
+    safeWrite(STORAGE_KEYS.GRAD_STUDIES, gradStudies);
+    safeWrite(STORAGE_KEYS.ACHIEVEMENTS, achievements);
+    safeWrite(STORAGE_KEYS.CURRICULUM, curriculumTargets);
+    safeWrite(STORAGE_KEYS.MYSQL_CONFIG, mysqlConfig);
 
     if (!isCloudLoadedRef.current) {
       return;
@@ -611,7 +536,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const merged = { ...prev, ...updates, updatedAt: new Date().toISOString() };
       schoolProfileRef.current = merged;
       try {
-        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(merged));
+        safeWrite(STORAGE_KEYS.PROFILE, merged);
       } catch (err) {
         console.error('Error saving updated schoolProfile to localStorage:', err);
       }
@@ -980,7 +905,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setAchievements(initialAchievements);
     setCurriculumTargets(initialCurriculumTargets);
     setMysqlConfig(initialMySQLConfig);
-    localStorage.clear();
+    clearSchoolStorage();
   };
 
   const exportDataToJson = () => {
@@ -1099,4 +1024,3 @@ export const useSchool = () => {
   }
   return context;
 };
-
