@@ -181,6 +181,79 @@ const cleanFirestoreData = (data: any): any => {
   );
 };
 
+const readTimestamp = (value: any): number => {
+  if (!value) return 0;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+};
+
+const applyRemoteSnapshot = (data: any, setters: {
+  setSchoolProfile: React.Dispatch<React.SetStateAction<SchoolProfile>>;
+  setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
+  setAttendances: React.Dispatch<React.SetStateAction<DailyAttendanceRecord[]>>;
+  setWarningLetters: React.Dispatch<React.SetStateAction<AbsenceWarningLetter[]>>;
+  setTransferRequests: React.Dispatch<React.SetStateAction<TransferRequestLetter[]>>;
+  setTransferOuts: React.Dispatch<React.SetStateAction<TransferOutCertificate[]>>;
+  setTransferIns: React.Dispatch<React.SetStateAction<TransferInConfirmation[]>>;
+  setMutations: React.Dispatch<React.SetStateAction<StudentMutationRecord[]>>;
+  setExamCandidates: React.Dispatch<React.SetStateAction<ExamCandidate[]>>;
+  setExamSessions: React.Dispatch<React.SetStateAction<ExamSession[]>>;
+  setExamScores: React.Dispatch<React.SetStateAction<ExamScoreRecord[]>>;
+  setGradStudies: React.Dispatch<React.SetStateAction<GraduateStudyRecord[]>>;
+  setAchievements: React.Dispatch<React.SetStateAction<AchievementRecord[]>>;
+  setCurriculumTargets: React.Dispatch<React.SetStateAction<CurriculumTargetRecord[]>>;
+}) => {
+  const remoteUpdatedAt = readTimestamp(data?.updatedAt);
+  const localUpdatedAt = readTimestamp(safeRead(STORAGE_KEYS.PROFILE, {}).updatedAt);
+
+  if (remoteUpdatedAt > 0 && localUpdatedAt > 0 && remoteUpdatedAt < localUpdatedAt) {
+    return false;
+  }
+
+  if (data.schoolProfile) {
+    setters.setSchoolProfile((prev) => ({
+      ...prev,
+      ...data.schoolProfile,
+      logoSekolahUrl: data.schoolProfile.logoSekolahUrl || prev.logoSekolahUrl,
+      updatedAt: data.schoolProfile.updatedAt || data.updatedAt || prev.updatedAt,
+    }));
+  }
+  if (Array.isArray(data.students)) setters.setStudents(data.students);
+  if (Array.isArray(data.attendances)) setters.setAttendances(data.attendances);
+  if (Array.isArray(data.warningLetters)) setters.setWarningLetters(data.warningLetters);
+  if (Array.isArray(data.transferRequests)) setters.setTransferRequests(data.transferRequests);
+  if (Array.isArray(data.transferOuts)) setters.setTransferOuts(data.transferOuts);
+  if (Array.isArray(data.transferIns)) setters.setTransferIns(data.transferIns);
+  if (Array.isArray(data.mutations)) setters.setMutations(data.mutations);
+  if (Array.isArray(data.examCandidates)) setters.setExamCandidates(data.examCandidates);
+  if (Array.isArray(data.examSessions)) setters.setExamSessions(data.examSessions);
+  if (Array.isArray(data.examScores)) setters.setExamScores(data.examScores);
+  if (Array.isArray(data.gradStudies)) setters.setGradStudies(data.gradStudies);
+  if (Array.isArray(data.achievements)) setters.setAchievements(data.achievements);
+  if (Array.isArray(data.curriculumTargets)) setters.setCurriculumTargets(data.curriculumTargets);
+
+  try {
+    if (data.schoolProfile) safeWrite(STORAGE_KEYS.PROFILE, data.schoolProfile);
+    if (Array.isArray(data.students)) safeWrite(STORAGE_KEYS.STUDENTS, data.students);
+    if (Array.isArray(data.attendances)) safeWrite(STORAGE_KEYS.ATTENDANCE, data.attendances);
+    if (Array.isArray(data.warningLetters)) safeWrite(STORAGE_KEYS.WARNING_LETTERS, data.warningLetters);
+    if (Array.isArray(data.transferRequests)) safeWrite(STORAGE_KEYS.TRANSFER_REQ, data.transferRequests);
+    if (Array.isArray(data.transferOuts)) safeWrite(STORAGE_KEYS.TRANSFER_OUT, data.transferOuts);
+    if (Array.isArray(data.transferIns)) safeWrite(STORAGE_KEYS.TRANSFER_IN, data.transferIns);
+    if (Array.isArray(data.mutations)) safeWrite(STORAGE_KEYS.MUTATIONS, data.mutations);
+    if (Array.isArray(data.examCandidates)) safeWrite(STORAGE_KEYS.EXAM_CANDIDATES, data.examCandidates);
+    if (Array.isArray(data.examSessions)) safeWrite(STORAGE_KEYS.EXAM_SESSIONS, data.examSessions);
+    if (Array.isArray(data.examScores)) safeWrite(STORAGE_KEYS.EXAM_SCORES, data.examScores);
+    if (Array.isArray(data.gradStudies)) safeWrite(STORAGE_KEYS.GRAD_STUDIES, data.gradStudies);
+    if (Array.isArray(data.achievements)) safeWrite(STORAGE_KEYS.ACHIEVEMENTS, data.achievements);
+    if (Array.isArray(data.curriculumTargets)) safeWrite(STORAGE_KEYS.CURRICULUM, data.curriculumTargets);
+  } catch (e) {
+    console.warn('LocalStorage backup sync:', e);
+  }
+
+  return true;
+};
+
 export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() => {
     try {
@@ -278,16 +351,16 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
 
         const data = snap.data() as Record<string, any>;
-        const remoteUpdatedAt = data?.updatedAt ? new Date(data.updatedAt).getTime() : 0;
-        const localUpdatedAt = schoolProfileRef.current?.updatedAt ? new Date(schoolProfileRef.current.updatedAt).getTime() : 0;
+        const remoteUpdatedAt = readTimestamp(data?.updatedAt);
+        const localUpdatedAt = readTimestamp(safeRead(STORAGE_KEYS.PROFILE, {}).updatedAt);
 
-        if (remoteUpdatedAt > 0 && lastLocalWriteAtRef.current > 0 && remoteUpdatedAt <= lastLocalWriteAtRef.current + 1500) {
-          isCloudLoadedRef.current = true;
-          setCloudSyncStatus('synced');
-          return;
-        }
+        const canApplyRemote = !(
+          remoteUpdatedAt > 0 &&
+          localUpdatedAt > 0 &&
+          remoteUpdatedAt < localUpdatedAt
+        );
 
-        if (remoteUpdatedAt > 0 && localUpdatedAt > 0 && remoteUpdatedAt < localUpdatedAt) {
+        if (!canApplyRemote) {
           isCloudLoadedRef.current = true;
           setCloudSyncStatus('synced');
           return;
@@ -295,54 +368,25 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         isRemoteUpdateRef.current = true;
 
-        if (data.schoolProfile) {
-          setSchoolProfile(prev => {
-            const merged = {
-              ...prev,
-              ...data.schoolProfile,
-              logoSekolahUrl: data.schoolProfile.logoSekolahUrl || prev.logoSekolahUrl,
-              updatedAt: data.schoolProfile.updatedAt || data.updatedAt || prev.updatedAt,
-            };
-            schoolProfileRef.current = merged;
-            return merged;
-          });
-        }
-
-        if (Array.isArray(data.students)) { setStudents(data.students); studentsRef.current = data.students; }
-        if (Array.isArray(data.attendances)) { setAttendances(data.attendances); attendancesRef.current = data.attendances; }
-        if (Array.isArray(data.warningLetters)) { setWarningLetters(data.warningLetters); warningLettersRef.current = data.warningLetters; }
-        if (Array.isArray(data.transferRequests)) { setTransferRequests(data.transferRequests); transferRequestsRef.current = data.transferRequests; }
-        if (Array.isArray(data.transferOuts)) { setTransferOuts(data.transferOuts); transferOutsRef.current = data.transferOuts; }
-        if (Array.isArray(data.transferIns)) { setTransferIns(data.transferIns); transferInsRef.current = data.transferIns; }
-        if (Array.isArray(data.mutations)) { setMutations(data.mutations); mutationsRef.current = data.mutations; }
-        if (Array.isArray(data.examCandidates)) { setExamCandidates(data.examCandidates); examCandidatesRef.current = data.examCandidates; }
-        if (Array.isArray(data.examSessions)) { setExamSessions(data.examSessions); examSessionsRef.current = data.examSessions; }
-        if (Array.isArray(data.examScores)) { setExamScores(data.examScores); examScoresRef.current = data.examScores; }
-        if (Array.isArray(data.gradStudies)) { setGradStudies(data.gradStudies); gradStudiesRef.current = data.gradStudies; }
-        if (Array.isArray(data.achievements)) { setAchievements(data.achievements); achievementsRef.current = data.achievements; }
-        if (Array.isArray(data.curriculumTargets)) { setCurriculumTargets(data.curriculumTargets); curriculumTargetsRef.current = data.curriculumTargets; }
-
-        try {
-          if (data.schoolProfile) safeWrite(STORAGE_KEYS.PROFILE, data.schoolProfile);
-          if (Array.isArray(data.students)) safeWrite(STORAGE_KEYS.STUDENTS, data.students);
-          if (Array.isArray(data.attendances)) safeWrite(STORAGE_KEYS.ATTENDANCE, data.attendances);
-          if (Array.isArray(data.warningLetters)) safeWrite(STORAGE_KEYS.WARNING_LETTERS, data.warningLetters);
-          if (Array.isArray(data.transferRequests)) safeWrite(STORAGE_KEYS.TRANSFER_REQ, data.transferRequests);
-          if (Array.isArray(data.transferOuts)) safeWrite(STORAGE_KEYS.TRANSFER_OUT, data.transferOuts);
-          if (Array.isArray(data.transferIns)) safeWrite(STORAGE_KEYS.TRANSFER_IN, data.transferIns);
-          if (Array.isArray(data.mutations)) safeWrite(STORAGE_KEYS.MUTATIONS, data.mutations);
-          if (Array.isArray(data.examCandidates)) safeWrite(STORAGE_KEYS.EXAM_CANDIDATES, data.examCandidates);
-          if (Array.isArray(data.examSessions)) safeWrite(STORAGE_KEYS.EXAM_SESSIONS, data.examSessions);
-          if (Array.isArray(data.examScores)) safeWrite(STORAGE_KEYS.EXAM_SCORES, data.examScores);
-          if (Array.isArray(data.gradStudies)) safeWrite(STORAGE_KEYS.GRAD_STUDIES, data.gradStudies);
-          if (Array.isArray(data.achievements)) safeWrite(STORAGE_KEYS.ACHIEVEMENTS, data.achievements);
-          if (Array.isArray(data.curriculumTargets)) safeWrite(STORAGE_KEYS.CURRICULUM, data.curriculumTargets);
-        } catch (e) {
-          console.warn('LocalStorage backup sync:', e);
-        }
+        const applied = applyRemoteSnapshot(data, {
+          setSchoolProfile,
+          setStudents,
+          setAttendances,
+          setWarningLetters,
+          setTransferRequests,
+          setTransferOuts,
+          setTransferIns,
+          setMutations,
+          setExamCandidates,
+          setExamSessions,
+          setExamScores,
+          setGradStudies,
+          setAchievements,
+          setCurriculumTargets,
+        });
 
         isCloudLoadedRef.current = true;
-        setCloudSyncStatus('synced');
+        setCloudSyncStatus(applied ? 'synced' : 'error');
         setLastSyncedAt(new Date());
 
         setTimeout(() => {
@@ -361,6 +405,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     if (isRemoteUpdateRef.current) return;
+    if (!isCloudLoadedRef.current) return;
+
     markLocalWrite();
 
     safeWrite(STORAGE_KEYS.PROFILE, schoolProfile);
@@ -378,10 +424,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     safeWrite(STORAGE_KEYS.ACHIEVEMENTS, achievements);
     safeWrite(STORAGE_KEYS.CURRICULUM, curriculumTargets);
     safeWrite(STORAGE_KEYS.MYSQL_CONFIG, mysqlConfig);
-
-    if (!isCloudLoadedRef.current) {
-      return;
-    }
 
     setCloudSyncStatus('syncing');
 
@@ -482,18 +524,14 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateSchoolProfile = (updates: Partial<SchoolProfile>) => {
     const nextProfile: SchoolProfile = { ...schoolProfileRef.current, ...updates, updatedAt: new Date().toISOString() };
     schoolProfileRef.current = nextProfile;
-    setSchoolProfile(prev => {
+    setSchoolProfile((prev) => {
       const merged = { ...prev, ...updates, updatedAt: new Date().toISOString() };
       schoolProfileRef.current = merged;
-      try {
-        safeWrite(STORAGE_KEYS.PROFILE, merged);
-      } catch (err) {
-        console.error('Error saving updated schoolProfile to localStorage:', err);
-      }
+      safeWrite(STORAGE_KEYS.PROFILE, merged);
       return merged;
     });
 
-    forceSyncToCloud({ schoolProfile: nextProfile }).catch(err => console.warn('Sync profile error:', err));
+    forceSyncToCloud({ schoolProfile: nextProfile }).catch((err) => console.warn('Sync profile error:', err));
   };
 
   const addStudent = (studentData: Omit<Student, 'id'>): string => {
@@ -506,21 +544,21 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         '2025/2026-2': generateGrades(students.length + 1),
       },
     };
-    setStudents(prev => [newStudent, ...prev]);
+    setStudents((prev) => [newStudent, ...prev]);
     return newId;
   };
 
   const updateStudent = (id: string, updates: Partial<Student>) => {
-    setStudents(prev => prev.map(s => (s.id === id ? { ...s, ...updates } : s)));
+    setStudents((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
   };
 
   const deleteStudent = (id: string) => {
-    setStudents(prev => prev.filter(s => s.id !== id));
+    setStudents((prev) => prev.filter((s) => s.id !== id));
   };
 
   const saveAttendance = (record: DailyAttendanceRecord) => {
-    setAttendances(prev => {
-      const idx = prev.findIndex(a => a.tanggal === record.tanggal && a.kelas === record.kelas);
+    setAttendances((prev) => {
+      const idx = prev.findIndex((a) => a.tanggal === record.tanggal && a.kelas === record.kelas);
       if (idx >= 0) {
         const copy = [...prev];
         copy[idx] = record;
@@ -532,52 +570,52 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addWarningLetter = (letterData: Omit<AbsenceWarningLetter, 'id'>) => {
     const newLetter: AbsenceWarningLetter = { ...letterData, id: `letter-${Date.now()}` };
-    setWarningLetters(prev => [newLetter, ...prev]);
+    setWarningLetters((prev) => [newLetter, ...prev]);
   };
 
   const deleteWarningLetter = (id: string) => {
-    setWarningLetters(prev => prev.filter(l => l.id !== id));
+    setWarningLetters((prev) => prev.filter((l) => l.id !== id));
   };
 
   const addTransferRequest = (reqData: Omit<TransferRequestLetter, 'id'>) => {
     const newReq: TransferRequestLetter = { ...reqData, id: `treq-${Date.now()}` };
-    setTransferRequests(prev => [newReq, ...prev]);
+    setTransferRequests((prev) => [newReq, ...prev]);
   };
 
   const addTransferOut = (certData: Omit<TransferOutCertificate, 'id'>) => {
     const newCert: TransferOutCertificate = { ...certData, id: `tout-${Date.now()}` };
-    setTransferOuts(prev => [newCert, ...prev]);
+    setTransferOuts((prev) => [newCert, ...prev]);
     if (certData.studentId) updateStudent(certData.studentId, { statusSiswa: 'mutasi_keluar' });
   };
 
   const addTransferIn = (confData: Omit<TransferInConfirmation, 'id'>) => {
     const newConf: TransferInConfirmation = { ...confData, id: `tin-${Date.now()}` };
-    setTransferIns(prev => [newConf, ...prev]);
+    setTransferIns((prev) => [newConf, ...prev]);
   };
 
   const addMutation = (record: Omit<StudentMutationRecord, 'id'>) => {
     const newRecord: StudentMutationRecord = { ...record, id: `mut-${Date.now()}` };
-    setMutations(prev => [newRecord, ...prev]);
+    setMutations((prev) => [newRecord, ...prev]);
   };
 
   const deleteMutation = (id: string) => {
-    setMutations(prev => prev.filter(m => m.id !== id));
+    setMutations((prev) => prev.filter((m) => m.id !== id));
   };
 
   const addExamCandidate = (candData: Omit<ExamCandidate, 'id'>) => {
     const newCand: ExamCandidate = { ...candData, id: `cand-${Date.now()}` };
-    setExamCandidates(prev => [newCand, ...prev]);
+    setExamCandidates((prev) => [newCand, ...prev]);
   };
 
   const updateExamCandidate = (id: string, updates: Partial<ExamCandidate>) => {
-    setExamCandidates(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)));
+    setExamCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
   };
 
   const replaceExamCandidatesForClass = (className: string, rombel: string, newCandidates: ExamCandidate[]) => {
-    setExamCandidates(prev => {
-      const remaining = prev.filter(c => {
+    setExamCandidates((prev) => {
+      const remaining = prev.filter((c) => {
         const matchClass = String(c.kelas).trim().toUpperCase() === String(className).trim().toUpperCase();
-        const st = students.find(s => s.id === c.studentId);
+        const st = students.find((s) => s.id === c.studentId);
         const matchRombel = (st?.rombel || 'A') === rombel;
         return !(matchClass && matchRombel);
       });
@@ -586,8 +624,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const saveExamSession = (session: ExamSession) => {
-    setExamSessions(prev => {
-      const idx = prev.findIndex(s => s.id === session.id);
+    setExamSessions((prev) => {
+      const idx = prev.findIndex((s) => s.id === session.id);
       if (idx >= 0) {
         const copy = [...prev];
         copy[idx] = session;
@@ -598,8 +636,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateExamScore = (record: ExamScoreRecord) => {
-    setExamScores(prev => {
-      const idx = prev.findIndex(s => s.studentId === record.studentId);
+    setExamScores((prev) => {
+      const idx = prev.findIndex((s) => s.studentId === record.studentId);
       if (idx >= 0) {
         const copy = [...prev];
         copy[idx] = record;
@@ -611,16 +649,16 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addGraduateStudy = (studyData: Omit<GraduateStudyRecord, 'id'>) => {
     const newStudy: GraduateStudyRecord = { ...studyData, id: `grad-${Date.now()}` };
-    setGradStudies(prev => [newStudy, ...prev]);
+    setGradStudies((prev) => [newStudy, ...prev]);
   };
 
   const updateGraduateStudy = (id: string, updates: Partial<GraduateStudyRecord>) => {
-    setGradStudies(prev => prev.map(g => (g.id === id ? { ...g, ...updates } : g)));
+    setGradStudies((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
   };
 
   const updateStudentGrades = (studentId: string, semesterKey: string, grades: SubjectGrade[]) => {
-    setStudents(prev =>
-      prev.map(s => {
+    setStudents((prev) =>
+      prev.map((s) => {
         if (s.id !== studentId) return s;
         return {
           ...s,
@@ -634,8 +672,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateStudentPromotion = (studentId: string, promotion: PromotionRecord) => {
-    setStudents(prev =>
-      prev.map(s => {
+    setStudents((prev) =>
+      prev.map((s) => {
         if (s.id !== studentId) return s;
         return { ...s, riwayatKenaikan: promotion };
       })
@@ -644,8 +682,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const batchPromoteClass = (fromClass: string, toClass: string, status: 'Naik ke Kelas' | 'Lulus') => {
     const currentYear = schoolProfile.tahunAjaranAktif;
-    setStudents(prev =>
-      prev.map(s => {
+    setStudents((prev) =>
+      prev.map((s) => {
         if (s.kelasSekarang === fromClass && s.statusSiswa === 'aktif') {
           return {
             ...s,
@@ -663,16 +701,16 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addAchievement = (rec: Omit<AchievementRecord, 'id'>) => {
     const newAch: AchievementRecord = { ...rec, id: `ach-${Date.now()}` };
-    setAchievements(prev => [newAch, ...prev]);
+    setAchievements((prev) => [newAch, ...prev]);
   };
 
   const deleteAchievement = (id: string) => {
-    setAchievements(prev => prev.filter(a => a.id !== id));
+    setAchievements((prev) => prev.filter((a) => a.id !== id));
   };
 
   const saveCurriculumTarget = (record: CurriculumTargetRecord) => {
-    setCurriculumTargets(prev => {
-      const idx = prev.findIndex(c => c.id === record.id);
+    setCurriculumTargets((prev) => {
+      const idx = prev.findIndex((c) => c.id === record.id);
       if (idx >= 0) {
         const copy = [...prev];
         copy[idx] = record;
@@ -682,7 +720,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
-  const importStudentsFromExcel = (importedList: Partial<Student>[], mode: 'append' | 'replace'): { added: number; replaced: number } => {
+  const importStudentsFromExcel = (
+    importedList: Partial<Student>[],
+    mode: 'append' | 'replace'
+  ): { added: number; replaced: number } => {
     const formattedStudents: Student[] = importedList.map((item, idx) => {
       const id = item.id || `stu-imp-${Date.now()}-${idx}`;
       return {
@@ -740,14 +781,14 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return { added: formattedStudents.length, replaced: students.length };
     }
 
-    const existingNisSet = new Set(students.map(s => s.nis));
-    const newlyAdded = formattedStudents.filter(s => !existingNisSet.has(s.nis));
-    setStudents(prev => [...prev, ...newlyAdded]);
+    const existingNisSet = new Set(students.map((s) => s.nis));
+    const newlyAdded = formattedStudents.filter((s) => !existingNisSet.has(s.nis));
+    setStudents((prev) => [...prev, ...newlyAdded]);
     return { added: newlyAdded.length, replaced: 0 };
   };
 
   const updateMySQLConfig = (updates: Partial<MySQLConfig>) => {
-    setMysqlConfig(prev => ({ ...prev, ...updates }));
+    setMysqlConfig((prev) => ({ ...prev, ...updates }));
   };
 
   const testMySQLConnection = async () => {
