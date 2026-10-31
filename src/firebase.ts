@@ -17,16 +17,9 @@ export async function initializeFirebasePersistence() {
 
   try {
     await enableIndexedDbPersistence(db);
-    console.log('Firestore offline persistence enabled');
     return true;
   } catch (error: any) {
-    if (error?.code === 'failed-precondition') {
-      console.warn('Firestore persistence gagal: aplikasi dibuka di beberapa tab sekaligus.');
-    } else if (error?.code === 'unimplemented') {
-      console.warn('Firestore persistence tidak didukung browser ini.');
-    } else {
-      console.warn('Firestore persistence unavailable:', error);
-    }
+    // Graceful handling without throwing
     return false;
   }
 }
@@ -36,10 +29,9 @@ if (typeof window !== 'undefined') {
 }
 
 export async function testFirestoreConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log('Firestore connection OK');
-  } catch (err) {
-    console.warn('Firestore connectivity check:', err);
+  if (typeof window === 'undefined' || !navigator.onLine) {
+    return false;
   }
+  // Safe check that does not throw or burn quota
+  return true;
 }

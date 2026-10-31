@@ -30,7 +30,7 @@ export const LoginPage: React.FC = () => {
       <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-700/50 grid grid-cols-1 md:grid-cols-12 relative z-10 animate-in fade-in duration-300">
         
         {/* Left Branding Panel (5 cols) */}
-        <div className="md:col-span-5 bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-950 p-8 text-white flex flex-col justify-between relative overflow-hidden">
+        <div className="md:col-span-5 bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-950 p-5 sm:p-8 text-white flex flex-col justify-between relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
 
           <div>

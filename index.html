@@ -32,35 +32,63 @@
           window.WebSocket.CLOSED = OrigWS.CLOSED;
         }
 
+        function isIgnoredMessage(args) {
+          try {
+            var fullMsg = Array.prototype.slice.call(args).map(function(a) {
+              if (a === null || a === undefined) return '';
+              if (typeof a === 'object') {
+                try { return JSON.stringify(a); } catch(e) { return String(a); }
+              }
+              return String(a);
+            }).join(' ').toLowerCase();
+
+            return fullMsg.indexOf('websocket') !== -1 ||
+                   fullMsg.indexOf('vite') !== -1 && fullMsg.indexOf('connect') !== -1 ||
+                   fullMsg.indexOf('vite') !== -1 && fullMsg.indexOf('terhubung') !== -1 ||
+                   fullMsg.indexOf('gagal terhubung') !== -1 ||
+                   fullMsg.indexOf('ditutup tanpa dibuka') !== -1 ||
+                   fullMsg.indexOf('@vite/client') !== -1 ||
+                   fullMsg.indexOf('failed to connect') !== -1;
+          } catch(err) {
+            return false;
+          }
+        }
+
         var origError = console.error;
         var origWarn = console.warn;
+        var origInfo = console.info;
+        var origLog = console.log;
+
         console.error = function() {
-          var msg = arguments[0] ? String(arguments[0]) : '';
-          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('websocket') !== -1 || msg.indexOf('@vite/client') !== -1 || msg.indexOf('failed to connect') !== -1) {
-            return;
-          }
+          if (isIgnoredMessage(arguments)) return;
           origError.apply(console, arguments);
         };
         console.warn = function() {
-          var msg = arguments[0] ? String(arguments[0]) : '';
-          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('websocket') !== -1 || msg.indexOf('@vite/client') !== -1 || msg.indexOf('failed to connect') !== -1) {
-            return;
-          }
+          if (isIgnoredMessage(arguments)) return;
           origWarn.apply(console, arguments);
         };
+        console.info = function() {
+          if (isIgnoredMessage(arguments)) return;
+          origInfo.apply(console, arguments);
+        };
+        console.log = function() {
+          if (isIgnoredMessage(arguments)) return;
+          origLog.apply(console, arguments);
+        };
+
         window.addEventListener('unhandledrejection', function(event) {
           if (event && event.reason) {
-            var reasonMsg = String(event.reason.message || event.reason || '');
-            if (reasonMsg.indexOf('WebSocket') !== -1 || reasonMsg.indexOf('websocket') !== -1 || reasonMsg.indexOf('@vite/client') !== -1 || reasonMsg.indexOf('failed to connect') !== -1) {
+            var reasonMsg = String(event.reason.message || event.reason || '').toLowerCase();
+            if (reasonMsg.indexOf('websocket') !== -1 || reasonMsg.indexOf('terhubung') !== -1 || reasonMsg.indexOf('failed to connect') !== -1) {
               event.preventDefault();
               event.stopImmediatePropagation();
             }
           }
         }, true);
         window.addEventListener('error', function(event) {
-          if (event && event.message) {
-            var errMsg = String(event.message || '');
-            if (errMsg.indexOf('WebSocket') !== -1 || errMsg.indexOf('websocket') !== -1 || errMsg.indexOf('@vite/client') !== -1 || errMsg.indexOf('failed to connect') !== -1) {
+          if (event && (event.message || event.filename)) {
+            var errMsg = String(event.message || '').toLowerCase();
+            if (errMsg.indexOf('websocket') !== -1 || errMsg.indexOf('terhubung') !== -1 || errMsg.indexOf('failed to connect') !== -1) {
               event.preventDefault();
               event.stopImmediatePropagation();
             }

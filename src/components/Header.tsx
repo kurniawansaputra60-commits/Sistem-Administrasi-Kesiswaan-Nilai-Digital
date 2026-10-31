@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Printer, School, LogIn, LogOut, ShieldCheck, User, Cloud, RefreshCw } from 'lucide-react';
+import { Printer, School, LogIn, LogOut, ShieldCheck, User, Cloud, RefreshCw, Menu } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { useAuth, UserRole } from '../context/AuthContext';
 import { LoginModal } from './LoginModal';
@@ -10,12 +10,14 @@ interface HeaderProps {
   onOpenSettings?: () => void;
   onOpenAddStudent?: () => void;
   onPrint?: () => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentTitle,
   formatTag,
   onPrint,
+  onToggleMobileMenu,
 }) => {
   const { schoolProfile, cloudSyncStatus, lastSyncedAt, forceSyncToCloud } = useSchool();
   const { userProfile, logout } = useAuth();
@@ -57,23 +59,32 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between gap-4 shrink-0 no-print print:hidden sticky top-0 z-20">
-        {/* Zone 1: Breadcrumb and Title */}
-        <div className="flex items-center gap-3 min-w-0">
+      <header className="h-14 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between gap-3 shrink-0 no-print print:hidden sticky top-0 z-20">
+        {/* Zone 1: Breadcrumb, Hamburger Menu and Title */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={onToggleMobileMenu}
+            className="md:hidden p-1.5 -ml-1 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg shrink-0 cursor-pointer transition-colors"
+            aria-label="Buka Menu Navigasi"
+            title="Buka Menu Navigasi"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           <img
             src="/assets/aistudio/llogo_06ce9f11.png"
             alt="Logo SDN 1 Cempaka"
-            className="w-8 h-8 object-contain shrink-0 drop-shadow-xs"
+            className="w-7 h-7 sm:w-8 sm:h-8 object-contain shrink-0 drop-shadow-xs"
           />
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap">
-            <span className="font-bold text-slate-800 truncate max-w-[160px]">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap min-w-0">
+            <span className="font-bold text-slate-800 truncate max-w-[90px] sm:max-w-[160px]">
               {schoolProfile.namaSekolah}
             </span>
             <span>/</span>
-            <span className="text-slate-800 font-semibold truncate">{currentTitle}</span>
+            <span className="text-slate-800 font-semibold truncate max-w-[130px] sm:max-w-none">{currentTitle}</span>
           </div>
           {formatTag && (
-            <span className="text-[11px] font-mono px-2 py-0.5 bg-slate-100 text-slate-800 rounded font-semibold whitespace-nowrap">
+            <span className="hidden sm:inline-block text-[11px] font-mono px-2 py-0.5 bg-slate-100 text-slate-800 rounded font-semibold whitespace-nowrap">
               Format : {formatTag}
             </span>
           )}

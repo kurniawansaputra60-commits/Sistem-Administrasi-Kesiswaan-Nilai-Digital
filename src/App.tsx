@@ -116,6 +116,7 @@ const TAB_CONFIG: Record<NavItemKey, { title: string; formatTag?: string }> = {
 function MainApp() {
   const { userProfile, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<NavItemKey>('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
   const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -147,6 +148,7 @@ function MainApp() {
 
   const handleSelectTab = (tab: NavItemKey) => {
     setActiveTab(tab);
+    setIsMobileMenuOpen(false);
     if (tab === 'school-settings') {
       if (userProfile?.role === 'admin') {
         setIsSettingsModalOpen(true);
@@ -159,16 +161,22 @@ function MainApp() {
   return (
     <div className="min-h-screen bg-slate-100 flex flex-row print:block print:bg-white print:m-0 print:p-0 app-layout">
       {/* Sidebar Navigation */}
-      <Sidebar activeTab={activeTab} onSelectTab={handleSelectTab} />
+      <Sidebar
+        activeTab={activeTab}
+        onSelectTab={handleSelectTab}
+        mobileOpen={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 print:block print:w-full print:m-0 print:p-0">
         <Header
           currentTitle={currentConfig.title}
           formatTag={currentConfig.formatTag}
+          onToggleMobileMenu={() => setIsMobileMenuOpen(prev => !prev)}
         />
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto max-w-[1600px] w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full print:overflow-visible">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto max-w-[1600px] w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full print:overflow-visible min-w-0">
           {activeTab === 'dashboard' && (
             <Dashboard
               onNavigate={handleSelectTab}

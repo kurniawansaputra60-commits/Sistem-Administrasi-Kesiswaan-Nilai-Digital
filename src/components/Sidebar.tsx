@@ -30,6 +30,7 @@ import {
   ChevronRight,
   FolderOpen,
   Folder,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -80,6 +81,8 @@ export type NavItemKey =
 interface SidebarProps {
   activeTab: NavItemKey;
   onSelectTab: (tab: NavItemKey) => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export interface NavItem {
@@ -96,7 +99,12 @@ export interface NavSection {
   items: NavItem[];
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  activeTab,
+  onSelectTab,
+  mobileOpen,
+  onCloseMobile,
+}) => {
   const { userProfile } = useAuth();
   const role = userProfile?.role || 'admin';
 
@@ -401,7 +409,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
   };
 
   return (
-    <aside className="w-72 bg-slate-900 text-slate-300 flex flex-col h-full border-r border-slate-800 shrink-0 select-none print:hidden">
+    <>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-40 md:hidden print:hidden"
+          onClick={onCloseMobile}
+        />
+      )}
+      <aside className={`w-72 bg-slate-900 text-slate-300 flex-col h-full border-r border-slate-800 shrink-0 select-none print:hidden z-50 ${
+        mobileOpen
+          ? 'fixed inset-y-0 left-0 shadow-2xl max-w-[85vw] flex'
+          : 'hidden md:flex'
+      }`}>
       {/* Brand Header */}
       <div className="p-4 border-b border-slate-800 space-y-2.5">
         <div className="flex items-center gap-3">
@@ -412,7 +431,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
               className="w-full h-full object-contain"
             />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-xs font-black text-white tracking-tight truncate uppercase">
               SD NEGERI 1 CEMPAKA
             </h1>
@@ -420,6 +439,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
               Format Resmi S-1 s/d PS-24
             </p>
           </div>
+          {onCloseMobile && (
+            <button
+              onClick={onCloseMobile}
+              className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+              aria-label="Tutup Menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Role Badge Indicator */}
@@ -494,7 +522,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
                     return (
                       <button
                         key={item.key}
-                        onClick={() => onSelectTab(item.key)}
+                        onClick={() => {
+                          onSelectTab(item.key);
+                          onCloseMobile?.();
+                        }}
                         className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer group ${
                           isActive
                             ? 'bg-emerald-600 text-white font-bold shadow-xs'
@@ -535,7 +566,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
         <div className="p-3 border-t border-slate-800 bg-slate-950/40 text-[11px] space-y-2">
           {/* Profil Sekolah & Kop Surat HANYA untuk Administrator (Sesuai instruksi: sembunyikan dari Kepala Sekolah & Wali Kelas) */}
           <button
-            onClick={() => onSelectTab('school-settings')}
+            onClick={() => {
+              onSelectTab('school-settings');
+              onCloseMobile?.();
+            }}
             className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
               activeTab === 'school-settings'
                 ? 'bg-emerald-700 text-white font-semibold'
@@ -548,5 +582,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab }) => {
         </div>
       )}
     </aside>
-  );
+  </>
+);
 };

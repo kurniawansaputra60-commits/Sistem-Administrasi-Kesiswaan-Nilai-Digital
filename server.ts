@@ -56,7 +56,21 @@ app.post('/api/mysql/test-connection', async (req, res) => {
   }
 });
 
-// Sync data endpoint
+// Sync data endpoint: Save and retrieve system data for instant multi-device sync & offline fallback
+app.get('/api/data', (req, res) => {
+  try {
+    const filePath = path.join(dataDir, 'database_kesiswaan.json');
+    if (fs.existsSync(filePath)) {
+      const rawData = fs.readFileSync(filePath, 'utf-8');
+      const parsed = JSON.parse(rawData);
+      return res.json({ success: true, data: parsed });
+    }
+    return res.json({ success: true, data: null });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.post('/api/sync', (req, res) => {
   try {
     const payload = req.body;
