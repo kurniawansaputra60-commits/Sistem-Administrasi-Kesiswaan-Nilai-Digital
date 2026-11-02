@@ -31,14 +31,24 @@ import {
   Filter,
   Cloud,
   RefreshCw,
+  Printer,
+  ChevronDown,
 } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { useAuth, UserRole } from '../context/AuthContext';
 import { NavItemKey } from './Sidebar';
 import { WaliKelasItem } from '../types';
-import { downloadStudentExcelTemplate } from '../utils/excelHelper';
+import {
+  downloadStudentExcelTemplate,
+  exportRombelStudentsToExcel,
+  exportRombelAttendanceToExcel,
+  exportRombelGradesTemplateToExcel,
+  exportRombelToCsv,
+} from '../utils/excelHelper';
 import { isKelasMatch } from '../utils/classUtils';
 import { generateDigitalSignatureSvg } from '../utils/signatureUtils';
+import { OfficialKop, OfficialSignature } from './OfficialKop';
+import { formatTempatTanggalLahirLengkap } from '../utils/dateUtils';
 
 interface DashboardProps {
   onNavigate: (tab: NavItemKey) => void;
@@ -79,6 +89,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
   const [backupMsg, setBackupMsg] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
+
+  // State for Wali Kelas Rombel Export & Print
+  const [rombelExportMsg, setRombelExportMsg] = useState<string | null>(null);
+  const [showRombelPrintSheet, setShowRombelPrintSheet] = useState(false);
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
 
   const handleManualCloudSync = async () => {
     setIsManualSyncing(true);
@@ -630,6 +645,296 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
           </div>
         </div>
 
+        {/* Notifikasi Sukses Ekspor Rombel */}
+        {rombelExportMsg && (
+          <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs flex items-center justify-between shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-semibold">{rombelExportMsg}</span>
+            </div>
+            <button
+              onClick={() => setRombelExportMsg(null)}
+              className="text-emerald-700 hover:text-emerald-900 text-xs font-bold px-2 py-0.5"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Modal / Sheet Pratinjau Cetak Berkas Resmi Rombel Binaan */}
+        {showRombelPrintSheet && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex flex-col items-center justify-start p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-4 overflow-hidden border border-slate-300">
+              {/* Top Floating Action Bar */}
+              <div className="no-print p-4 bg-slate-900 text-white flex items-center justify-between gap-4 sticky top-0 z-20">
+                <div className="flex items-center gap-3">
+                  <Printer className="w-5 h-5 text-emerald-400" />
+                  <div>
+                    <h3 className="font-bold text-sm text-white">
+                      Pratinjau Cetak Berkas Resmi Rombel: Kelas {teacherKelas} {teacherRombel}
+                    </h3>
+                    <p className="text-[11px] text-slate-300">
+                      Dokumen resmi siap cetak / simpan ke format PDF dengan Kop Surat dan Tanda Tangan Wali Kelas
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => window.print()}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-colors flex items-center gap-1.5"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Cetak / Simpan PDF</span>
+                  </button>
+                  <button
+                    onClick={() => setShowRombelPrintSheet(false)}
+                    className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+
+              {/* Printable Sheet */}
+              <div className="p-8 md:p-12 print:p-0 print:m-0 text-slate-900 text-xs">
+                <OfficialKop
+                  formatCode={`Rombel-${teacherKelas}${teacherRombel}`}
+                  formatTitle={`DAFTAR PESERTA DIDIK ROMBONGAN BELAJAR KELAS ${teacherKelas} ${teacherRombel}`}
+                  subTitle={`TAHUN AJARAN ${schoolProfile.tahunAjaranAktif} · SEMESTER ${schoolProfile.semesterAktif === '1' ? 'GANJIL' : 'GENAP'}`}
+                  kelas={`${teacherKelas} - ${teacherRombel}`}
+                />
+
+                <div className="overflow-x-auto my-4">
+                  <table className="w-full border-collapse border border-slate-800 text-[11px]">
+                    <thead className="bg-slate-100 text-slate-900 text-center font-bold">
+                      <tr>
+                        <th className="border border-slate-800 p-2 w-8">No</th>
+                        <th className="border border-slate-800 p-2 w-20">NIS</th>
+                        <th className="border border-slate-800 p-2 w-24">NISN</th>
+                        <th className="border border-slate-800 p-2 min-w-[150px]">Nama Lengkap Siswa</th>
+                        <th className="border border-slate-800 p-2 w-10">L/P</th>
+                        <th className="border border-slate-800 p-2 min-w-[150px]">Tempat, Tanggal Lahir</th>
+                        <th className="border border-slate-800 p-2 w-16">Agama</th>
+                        <th className="border border-slate-800 p-2 min-w-[120px]">Nama Orang Tua</th>
+                        <th className="border border-slate-800 p-2 min-w-[110px]">Pekerjaan</th>
+                        <th className="border border-slate-800 p-2 min-w-[140px]">Alamat Lengkap</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teacherRombelStudents.map((st, i) => (
+                        <tr key={st.id} className="hover:bg-slate-50">
+                          <td className="border border-slate-800 p-2 text-center font-mono">{i + 1}</td>
+                          <td className="border border-slate-800 p-2 font-mono text-center">{st.nis || '-'}</td>
+                          <td className="border border-slate-800 p-2 font-mono text-center">{st.nisn || '-'}</td>
+                          <td className="border border-slate-800 p-2 font-bold">{st.namaLengkap}</td>
+                          <td className="border border-slate-800 p-2 text-center font-bold">{st.jenisKelamin}</td>
+                          <td className="border border-slate-800 p-2 text-[10px]">
+                            {formatTempatTanggalLahirLengkap(st.tempatLahir, st.tanggalLahir)}
+                          </td>
+                          <td className="border border-slate-800 p-2 text-center">{st.agama}</td>
+                          <td className="border border-slate-800 p-2">{st.dataAyah?.nama || '-'}</td>
+                          <td className="border border-slate-800 p-2">{st.dataAyah?.pekerjaan || '-'}</td>
+                          <td className="border border-slate-800 p-2 text-[10px]">{st.alamat || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Rekapitulasi */}
+                <div className="mt-4 p-3 bg-slate-50 border border-slate-300 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
+                  <span>Rekapitulasi Siswa Rombel {teacherKelas} {teacherRombel}:</span>
+                  <span>Laki-Laki : {teacherRombelStudents.filter(s => s.jenisKelamin === 'L').length} Orang</span>
+                  <span>Perempuan : {teacherRombelStudents.filter(s => s.jenisKelamin === 'P').length} Orang</span>
+                  <span>Total : {teacherRombelStudents.length} Orang</span>
+                </div>
+
+                <OfficialSignature
+                  kelas={teacherKelas}
+                  rombel={teacherRombel}
+                  waliKelasNama={userProfile?.displayName}
+                  waliKelasNip={userProfile?.nip}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pusat Format Ekspor & Unduh Berkas Rombel Binaan */}
+        <div className="bg-white p-6 rounded-2xl border border-blue-200 shadow-xs space-y-4">
+          <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-blue-700" />
+                <span>Pusat Format Ekspor &amp; Cetak Berkas Rombel {teacherKelas} {teacherRombel}</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Unduh berkas administrasi rombongan belajar dalam berbagai format resmi (Excel .XLSX, Rekap Presensi, Leger Nilai, CSV, &amp; PDF)
+              </p>
+            </div>
+            <span className="text-[11px] font-mono bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-1 rounded font-bold self-start sm:self-auto">
+              {teacherRombelStudents.length} Siswa Siap Ekspor
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* Format 1: Ekspor Excel Lengkap */}
+            <div className="p-4 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50/60 to-white hover:border-emerald-400 transition-all shadow-2xs hover:shadow-xs flex flex-col justify-between space-y-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded uppercase">
+                    Format .XLSX
+                  </span>
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                </div>
+                <h3 className="font-bold text-xs text-slate-900">Data Induk Siswa Rombel</h3>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Ekspor biodata lengkap rombel, orang tua, alamat, dan tanggal lahir lengkap (Hari, Tanggal Bulan Tahun).
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  try {
+                    exportRombelStudentsToExcel(
+                      teacherRombelStudents,
+                      teacherKelas,
+                      teacherRombel,
+                      schoolProfile.namaSekolah,
+                      userProfile?.displayName
+                    );
+                    setRombelExportMsg(`Berhasil mengekspor Data Siswa Kelas ${teacherKelas} ${teacherRombel} ke file Excel (.xlsx).`);
+                    setTimeout(() => setRombelExportMsg(null), 5000);
+                  } catch (e: any) {
+                    alert(`Gagal mengekspor: ${e.message}`);
+                  }
+                }}
+                className="w-full py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Unduh Excel Siswa (.xlsx)</span>
+              </button>
+            </div>
+
+            {/* Format 2: Rekap Presensi Rombel */}
+            <div className="p-4 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50/60 to-white hover:border-blue-400 transition-all shadow-2xs hover:shadow-xs flex flex-col justify-between space-y-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded uppercase">
+                    Format Presensi
+                  </span>
+                  <CalendarCheck className="w-4 h-4 text-blue-600" />
+                </div>
+                <h3 className="font-bold text-xs text-slate-900">Rekap Kehadiran Siswa</h3>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Ekspor rekapitulasi kehadiran Hadir (H), Sakit (S), Izin (I), Alpa (A) dan persentase kehadiran per siswa.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  try {
+                    exportRombelAttendanceToExcel(
+                      teacherRombelStudents,
+                      attendances,
+                      teacherKelas,
+                      teacherRombel,
+                      schoolProfile.namaSekolah
+                    );
+                    setRombelExportMsg(`Berhasil mengekspor Rekap Presensi Kelas ${teacherKelas} ${teacherRombel} ke file Excel (.xlsx).`);
+                    setTimeout(() => setRombelExportMsg(null), 5000);
+                  } catch (e: any) {
+                    alert(`Gagal mengekspor presensi: ${e.message}`);
+                  }
+                }}
+                className="w-full py-2 px-3 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Unduh Rekap Presensi (.xlsx)</span>
+              </button>
+            </div>
+
+            {/* Format 3: Format Leger Nilai Rapor */}
+            <div className="p-4 rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50/60 to-white hover:border-purple-400 transition-all shadow-2xs hover:shadow-xs flex flex-col justify-between space-y-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded uppercase">
+                    Format Nilai
+                  </span>
+                  <Award className="w-4 h-4 text-purple-600" />
+                </div>
+                <h3 className="font-bold text-xs text-slate-900">Template Nilai &amp; Leger</h3>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Ekspor spreadsheet daftar siswa rombel ini dengan kolom mata pelajaran Kurikulum Merdeka yang siap diisi.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  try {
+                    exportRombelGradesTemplateToExcel(
+                      teacherRombelStudents,
+                      teacherKelas,
+                      teacherRombel,
+                      schoolProfile.namaSekolah
+                    );
+                    setRombelExportMsg(`Berhasil mengekspor Template Nilai Kelas ${teacherKelas} ${teacherRombel} ke file Excel (.xlsx).`);
+                    setTimeout(() => setRombelExportMsg(null), 5000);
+                  } catch (e: any) {
+                    alert(`Gagal mengekspor template nilai: ${e.message}`);
+                  }
+                }}
+                className="w-full py-2 px-3 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Unduh Template Nilai (.xlsx)</span>
+              </button>
+            </div>
+
+            {/* Format 4: CSV & Cetak PDF */}
+            <div className="p-4 rounded-xl border border-slate-300 bg-gradient-to-br from-slate-50/60 to-white hover:border-slate-400 transition-all shadow-2xs hover:shadow-xs flex flex-col justify-between space-y-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold bg-slate-200 text-slate-800 px-2 py-0.5 rounded uppercase">
+                    CSV &amp; PDF
+                  </span>
+                  <Printer className="w-4 h-4 text-slate-700" />
+                </div>
+                <h3 className="font-bold text-xs text-slate-900">Cetak Dokumen Resmi &amp; CSV</h3>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Cetak lembar resmi rombel dengan kop surat atau unduh file CSV untuk sinkronisasi sistem dinas.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setShowRombelPrintSheet(true)}
+                  className="py-2 px-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-[11px] rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Cetak PDF</span>
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      exportRombelToCsv(
+                        teacherRombelStudents,
+                        teacherKelas,
+                        teacherRombel,
+                        schoolProfile.namaSekolah
+                      );
+                      setRombelExportMsg(`Berhasil mengekspor Data Siswa Kelas ${teacherKelas} ${teacherRombel} ke file CSV.`);
+                      setTimeout(() => setRombelExportMsg(null), 5000);
+                    } catch (e: any) {
+                      alert(`Gagal mengekspor CSV: ${e.message}`);
+                    }
+                  }}
+                  className="py-2 px-2.5 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-[11px] rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>File .CSV</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Tabel Siswa Binaan Rombel dengan Pencarian & Filter */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50">
@@ -653,7 +958,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                   placeholder="Cari nama / NIS..."
                   value={teacherSearch}
                   onChange={e => setTeacherSearch(e.target.value)}
-                  className="pl-8 pr-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-40"
+                  className="pl-8 pr-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-36 sm:w-40"
                 />
               </div>
 
@@ -667,6 +972,83 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                 <option value="L">Laki-laki (L)</option>
                 <option value="P">Perempuan (P)</option>
               </select>
+
+              {/* Quick Export Button Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+                  className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg shadow-2xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Ekspor Rombel</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+
+                {exportDropdownOpen && (
+                  <div className="absolute right-0 mt-1 w-52 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-30 text-xs">
+                    <button
+                      onClick={() => {
+                        setExportDropdownOpen(false);
+                        exportRombelStudentsToExcel(teacherRombelStudents, teacherKelas, teacherRombel, schoolProfile.namaSekolah, userProfile?.displayName);
+                        setRombelExportMsg(`Berhasil mengekspor Data Siswa Kelas ${teacherKelas} ${teacherRombel} ke Excel (.xlsx).`);
+                        setTimeout(() => setRombelExportMsg(null), 4000);
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-emerald-50 text-slate-800 hover:text-emerald-800 flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Ekspor Siswa (.xlsx)</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setExportDropdownOpen(false);
+                        exportRombelAttendanceToExcel(teacherRombelStudents, attendances, teacherKelas, teacherRombel, schoolProfile.namaSekolah);
+                        setRombelExportMsg(`Berhasil mengekspor Rekap Presensi Kelas ${teacherKelas} ${teacherRombel} ke Excel (.xlsx).`);
+                        setTimeout(() => setRombelExportMsg(null), 4000);
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-blue-50 text-slate-800 hover:text-blue-800 flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <CalendarCheck className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Rekap Presensi (.xlsx)</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setExportDropdownOpen(false);
+                        exportRombelGradesTemplateToExcel(teacherRombelStudents, teacherKelas, teacherRombel, schoolProfile.namaSekolah);
+                        setRombelExportMsg(`Berhasil mengekspor Template Nilai Kelas ${teacherKelas} ${teacherRombel} ke Excel (.xlsx).`);
+                        setTimeout(() => setRombelExportMsg(null), 4000);
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-purple-50 text-slate-800 hover:text-purple-800 flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <Award className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Template Nilai (.xlsx)</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setExportDropdownOpen(false);
+                        exportRombelToCsv(teacherRombelStudents, teacherKelas, teacherRombel, schoolProfile.namaSekolah);
+                        setRombelExportMsg(`Berhasil mengekspor Data Siswa Kelas ${teacherKelas} ${teacherRombel} ke CSV.`);
+                        setTimeout(() => setRombelExportMsg(null), 4000);
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-cyan-50 text-slate-800 hover:text-cyan-800 flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-cyan-600" />
+                      <span>Ekspor Data CSV (.csv)</span>
+                    </button>
+                    <div className="border-t border-slate-100 my-1" />
+                    <button
+                      onClick={() => {
+                        setExportDropdownOpen(false);
+                        setShowRombelPrintSheet(true);
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-amber-50 text-slate-800 hover:text-amber-800 flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Cetak Lembar Resmi (PDF)</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <button
                 onClick={onOpenAddStudent}
@@ -714,8 +1096,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                           {s.jenisKelamin}
                         </span>
                       </td>
-                      <td className="py-2 px-3 text-slate-600">
-                        {s.tempatLahir}, {s.tanggalLahir}
+                      <td className="py-2 px-3 text-slate-700 font-medium">
+                        {formatTempatTanggalLahirLengkap(s.tempatLahir, s.tanggalLahir)}
                       </td>
                       <td className="py-2 px-3 text-center text-slate-700 font-medium">
                         {s.agama}

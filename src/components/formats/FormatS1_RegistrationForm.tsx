@@ -4,6 +4,7 @@ import { useSchool } from '../../context/SchoolContext';
 import { Student } from '../../types';
 import { Printer, UserCheck } from 'lucide-react';
 import { generateDigitalSignatureSvg } from '../../utils/signatureUtils';
+import { formatTempatTanggalLahirLengkap } from '../../utils/dateUtils';
 
 export const FormatS1_RegistrationForm: React.FC = () => {
   const { students, schoolProfile } = useSchool();
@@ -97,7 +98,9 @@ export const FormatS1_RegistrationForm: React.FC = () => {
                   <tr className="border-b border-slate-200">
                     <td className="py-1.5 font-medium">4. Tempat, Tanggal Lahir</td>
                     <td className="py-1.5">:</td>
-                    <td className="py-1.5">{currentStudent.tempatLahir}, {currentStudent.tanggalLahir}</td>
+                    <td className="py-1.5 font-medium text-slate-900">
+                      {formatTempatTanggalLahirLengkap(currentStudent.tempatLahir, currentStudent.tanggalLahir)}
+                    </td>
                   </tr>
                   <tr className="border-b border-slate-200">
                     <td className="py-1.5 font-medium">5. Agama</td>

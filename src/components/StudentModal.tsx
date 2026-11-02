@@ -3,6 +3,7 @@ import { X, Save, User, Upload, Trash2, Camera } from 'lucide-react';
 import { Student, Gender, Religion, StudentStatus } from '../types';
 import { useSchool } from '../context/SchoolContext';
 import { normalizeIncomeString } from '../utils/excelHelper';
+import { formatTanggalIndonesiaLengkap } from '../utils/dateUtils';
 
 interface StudentModalProps {
   isOpen: boolean;
@@ -342,6 +343,11 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                   onChange={e => setFormData({ ...formData, tanggalLahir: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-md"
                 />
+                {formData.tanggalLahir && (
+                  <span className="text-[10px] text-blue-700 font-semibold block mt-1">
+                    📅 {formatTanggalIndonesiaLengkap(formData.tanggalLahir)}
+                  </span>
+                )}
               </div>
 
               <div>

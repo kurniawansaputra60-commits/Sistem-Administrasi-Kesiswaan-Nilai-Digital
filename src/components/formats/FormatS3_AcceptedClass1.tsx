@@ -2,6 +2,7 @@ import React from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { Printer } from 'lucide-react';
+import { formatTempatTanggalLahirLengkap } from '../../utils/dateUtils';
 
 export const FormatS3_AcceptedClass1: React.FC = () => {
   const { students, schoolProfile } = useSchool();
@@ -90,8 +91,8 @@ export const FormatS3_AcceptedClass1: React.FC = () => {
                   <td className="border border-slate-800 p-2 font-mono text-center">{student.nisn}</td>
                   <td className="border border-slate-800 p-2 font-bold">{student.namaLengkap}</td>
                   <td className="border border-slate-800 p-2 text-center font-bold">{student.jenisKelamin}</td>
-                  <td className="border border-slate-800 p-2">
-                    {student.tempatLahir}, {student.tanggalLahir}
+                  <td className="border border-slate-800 p-2 text-[10px]">
+                    {formatTempatTanggalLahirLengkap(student.tempatLahir, student.tanggalLahir)}
                   </td>
                   <td className="border border-slate-800 p-2 text-center">{student.agama}</td>
                   <td className="border border-slate-800 p-2">{student.dataAyah.nama}</td>

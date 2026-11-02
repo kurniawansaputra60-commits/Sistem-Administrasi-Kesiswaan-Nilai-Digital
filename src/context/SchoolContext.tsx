@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { db, auth } from '../firebase';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import {
   SchoolProfile,
   Student,
@@ -95,7 +95,8 @@ interface SchoolContextType {
 
   cloudSyncStatus: 'initial_loading' | 'synced' | 'syncing' | 'error';
   lastSyncedAt: Date | null;
-  forceSyncToCloud: () => Promise<boolean>;
+  forceSyncToCloud: (customPayload?: Record<string, any>) => Promise<boolean>;
+  pullLatestFromCloud: () => Promise<boolean>;
 
   updateSchoolProfile: (updates: Partial<SchoolProfile>) => void;
   addStudent: (student: Omit<Student, 'id'>) => string;
@@ -592,6 +593,79 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const pullLatestFromCloud = async (): Promise<boolean> => {
+    try {
+      setCloudSyncStatus('syncing');
+      try {
+        const res = await fetch('/api/school-data');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            isRemoteUpdateRef.current = true;
+            applyRemoteSnapshot(json.data, {
+              setSchoolProfile,
+              setStudents,
+              setAttendances,
+              setWarningLetters,
+              setTransferRequests,
+              setTransferOuts,
+              setTransferIns,
+              setMutations,
+              setExamCandidates,
+              setExamSessions,
+              setExamScores,
+              setGradStudies,
+              setAchievements,
+              setCurriculumTargets,
+            });
+            setCloudSyncStatus('synced');
+            setLastSyncedAt(new Date());
+            setTimeout(() => {
+              isRemoteUpdateRef.current = false;
+            }, 150);
+            return true;
+          }
+        }
+      } catch {
+        // Continue to Firestore fallback
+      }
+
+      const snap = await getDoc(doc(db, 'school_data', 'main'));
+      if (snap.exists()) {
+        const data = snap.data() as Record<string, any>;
+        isRemoteUpdateRef.current = true;
+        applyRemoteSnapshot(data, {
+          setSchoolProfile,
+          setStudents,
+          setAttendances,
+          setWarningLetters,
+          setTransferRequests,
+          setTransferOuts,
+          setTransferIns,
+          setMutations,
+          setExamCandidates,
+          setExamSessions,
+          setExamScores,
+          setGradStudies,
+          setAchievements,
+          setCurriculumTargets,
+        });
+        setCloudSyncStatus('synced');
+        setLastSyncedAt(new Date());
+        setTimeout(() => {
+          isRemoteUpdateRef.current = false;
+        }, 150);
+        return true;
+      }
+      setCloudSyncStatus('synced');
+      return true;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.GET, 'school_data/main');
+      setCloudSyncStatus('synced');
+      return false;
+    }
+  };
+
   const updateSchoolProfile = (updates: Partial<SchoolProfile>) => {
     const nextProfile: SchoolProfile = { ...schoolProfileRef.current, ...updates, updatedAt: new Date().toISOString() };
     schoolProfileRef.current = nextProfile;
@@ -999,6 +1073,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         cloudSyncStatus,
         lastSyncedAt,
         forceSyncToCloud,
+        pullLatestFromCloud,
         updateSchoolProfile,
         addStudent,
         updateStudent,

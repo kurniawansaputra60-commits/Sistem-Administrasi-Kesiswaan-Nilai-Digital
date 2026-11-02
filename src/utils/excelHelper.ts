@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { Student, Gender, Religion, StudentStatus } from '../types';
+import { formatTempatTanggalLahirLengkap, formatTanggalIndonesiaLengkap } from './dateUtils';
 
 export interface ExcelImportRow {
   nis: string;
@@ -509,4 +510,295 @@ export function exportStudentsToExcel(students: Student[], schoolName: string = 
   XLSX.utils.book_append_sheet(wb, ws, 'BUKU_INDUK_SISWA');
   const filename = `Data_Siswa_${schoolName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, filename);
+}
+
+/**
+ * Ekspor resmi Data Siswa Rombel Binaan ke file Excel (.xlsx)
+ * Disertai format Tempat, Tanggal Lahir lengkap (Hari, Tanggal Bulan Tahun)
+ */
+export function exportRombelStudentsToExcel(
+  students: Student[],
+  kelas: string,
+  rombel: string,
+  schoolName: string = 'SD NEGERI',
+  waliKelasName?: string
+) {
+  const exportData = students.map((s, idx) => ({
+    'No': idx + 1,
+    'NIS': s.nis || '-',
+    'NISN': s.nisn || '-',
+    'Nama Lengkap Siswa': s.namaLengkap,
+    'Nama Panggilan': s.namaPanggilan || '-',
+    'L/P': s.jenisKelamin,
+    'Tempat Lahir': s.tempatLahir || '-',
+    'Tanggal Lahir (Lengkap Hari, Tgl Bulan Thn)': formatTanggalIndonesiaLengkap(s.tanggalLahir),
+    'Tanggal Lahir (Standar)': s.tanggalLahir,
+    'Agama': s.agama,
+    'Kelas': s.kelasSekarang,
+    'Rombel': s.rombel || rombel,
+    'Status Kesiswaan': s.statusSiswa.toUpperCase(),
+    'Alamat Lengkap': s.alamat,
+    'Kelurahan': s.kelurahan || '-',
+    'Kecamatan': s.kecamatan || '-',
+    'Kabupaten / Kota': s.kabupatenKota || '-',
+    'Provinsi': s.provinsi || 'Banten',
+    'Nama Ayah': s.dataAyah?.nama || '-',
+    'Pendidikan Ayah': s.dataAyah?.pendidikan || '-',
+    'Pekerjaan Ayah': s.dataAyah?.pekerjaan || '-',
+    'Penghasilan Ayah': s.dataAyah?.penghasilan || '-',
+    'Nama Ibu': s.dataIbu?.nama || '-',
+    'Pendidikan Ibu': s.dataIbu?.pendidikan || '-',
+    'Pekerjaan Ibu': s.dataIbu?.pekerjaan || '-',
+    'Penghasilan Ibu': s.dataIbu?.penghasilan || '-',
+    'No. HP Orang Tua': s.dataAyah?.noHp || s.dataIbu?.noHp || s.noHp || '-',
+    'Asal Sekolah': s.asalSekolah || '-',
+    'Tanggal Diterima': s.tanggalDiterima || '-',
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(exportData);
+
+  ws['!cols'] = [
+    { wch: 6 },  // No
+    { wch: 12 }, // NIS
+    { wch: 14 }, // NISN
+    { wch: 30 }, // Nama Lengkap
+    { wch: 14 }, // Panggilan
+    { wch: 6 },  // L/P
+    { wch: 16 }, // Tempat Lahir
+    { wch: 28 }, // Tanggal Lahir Lengkap
+    { wch: 14 }, // Tanggal Lahir Standar
+    { wch: 12 }, // Agama
+    { wch: 8 },  // Kelas
+    { wch: 8 },  // Rombel
+    { wch: 12 }, // Status
+    { wch: 32 }, // Alamat
+    { wch: 18 }, // Kelurahan
+    { wch: 18 }, // Kecamatan
+    { wch: 20 }, // Kab/Kota
+    { wch: 16 }, // Provinsi
+    { wch: 22 }, // Nama Ayah
+    { wch: 16 }, // Pend Ayah
+    { wch: 18 }, // Kerja Ayah
+    { wch: 22 }, // Penghasilan Ayah
+    { wch: 22 }, // Nama Ibu
+    { wch: 16 }, // Pend Ibu
+    { wch: 18 }, // Kerja Ibu
+    { wch: 22 }, // Penghasilan Ibu
+    { wch: 18 }, // No HP
+    { wch: 22 }, // Asal Sekolah
+    { wch: 16 }, // Tanggal Diterima
+  ];
+
+  const sheetName = `SISWA_${kelas}_${rombel}`.slice(0, 31);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const cleanSchool = schoolName.replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `Daftar_Siswa_Kelas_${kelas}_${rombel}_${cleanSchool}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+}
+
+/**
+ * Ekspor Rekap Kehadiran / Presensi Siswa Rombel Binaan ke Excel (.xlsx)
+ */
+export function exportRombelAttendanceToExcel(
+  students: Student[],
+  attendances: any[],
+  kelas: string,
+  rombel: string,
+  schoolName: string = 'SD NEGERI'
+) {
+  const studentMap = new Map<string, { h: number; s: number; i: number; a: number }>();
+  students.forEach(s => {
+    studentMap.set(s.id, { h: 0, s: 0, i: 0, a: 0 });
+  });
+
+  attendances.forEach(att => {
+    att.entries?.forEach((entry: any) => {
+      if (studentMap.has(entry.studentId)) {
+        const stats = studentMap.get(entry.studentId)!;
+        if (entry.status === 'H') stats.h++;
+        else if (entry.status === 'S') stats.s++;
+        else if (entry.status === 'I') stats.i++;
+        else if (entry.status === 'A') stats.a++;
+      }
+    });
+  });
+
+  const exportData = students.map((s, idx) => {
+    const stat = studentMap.get(s.id) || { h: 0, s: 0, i: 0, a: 0 };
+    const totalRecorded = stat.h + stat.s + stat.i + stat.a;
+    const pct = totalRecorded > 0 ? Math.round((stat.h / totalRecorded) * 100) : 100;
+    return {
+      'No': idx + 1,
+      'NIS': s.nis || '-',
+      'NISN': s.nisn || '-',
+      'Nama Lengkap': s.namaLengkap,
+      'L/P': s.jenisKelamin,
+      'Kelas': s.kelasSekarang,
+      'Rombel': s.rombel || rombel,
+      'Hadir (H)': stat.h,
+      'Sakit (S)': stat.s,
+      'Izin (I)': stat.i,
+      'Alpa (A)': stat.a,
+      'Total Catatan Hari': totalRecorded,
+      'Persentase Kehadiran (%)': `${pct}%`,
+      'Predikat Kehadiran': pct >= 90 ? 'Sangat Baik' : pct >= 75 ? 'Baik' : pct >= 60 ? 'Cukup' : 'Perlu Perhatian',
+    };
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(exportData);
+
+  ws['!cols'] = [
+    { wch: 6 },  // No
+    { wch: 12 }, // NIS
+    { wch: 14 }, // NISN
+    { wch: 30 }, // Nama
+    { wch: 6 },  // L/P
+    { wch: 8 },  // Kelas
+    { wch: 8 },  // Rombel
+    { wch: 12 }, // H
+    { wch: 12 }, // S
+    { wch: 12 }, // I
+    { wch: 12 }, // A
+    { wch: 18 }, // Total
+    { wch: 22 }, // Pct
+    { wch: 20 }, // Predikat
+  ];
+
+  const sheetName = `PRESENSI_${kelas}_${rombel}`.slice(0, 31);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const cleanSchool = schoolName.replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `Rekap_Presensi_Kelas_${kelas}_${rombel}_${cleanSchool}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+}
+
+/**
+ * Ekspor Format / Template Nilai Rapor Rombel Binaan ke Excel (.xlsx)
+ */
+export function exportRombelGradesTemplateToExcel(
+  students: Student[],
+  kelas: string,
+  rombel: string,
+  schoolName: string = 'SD NEGERI'
+) {
+  const exportData = students.map((s, idx) => ({
+    'No': idx + 1,
+    'NIS': s.nis || '-',
+    'NISN': s.nisn || '-',
+    'Nama Lengkap Siswa': s.namaLengkap,
+    'L/P': s.jenisKelamin,
+    'Kelas': s.kelasSekarang,
+    'Rombel': s.rombel || rombel,
+    'Pendidikan Agama': '',
+    'Pancasila / PKn': '',
+    'Bahasa Indonesia': '',
+    'Matematika': '',
+    'IPAS': '',
+    'PJOK': '',
+    'Seni Budaya': '',
+    'Bahasa Inggris': '',
+    'Muatan Lokal': '',
+    'Catatan / Deskripsi Perkembangan': '',
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(exportData);
+
+  ws['!cols'] = [
+    { wch: 6 },  // No
+    { wch: 12 }, // NIS
+    { wch: 14 }, // NISN
+    { wch: 30 }, // Nama
+    { wch: 6 },  // L/P
+    { wch: 8 },  // Kelas
+    { wch: 8 },  // Rombel
+    { wch: 16 }, // Agama
+    { wch: 16 }, // PKn
+    { wch: 16 }, // BI
+    { wch: 16 }, // MTK
+    { wch: 16 }, // IPAS
+    { wch: 16 }, // PJOK
+    { wch: 16 }, // SBdP
+    { wch: 16 }, // Bing
+    { wch: 16 }, // Mulok
+    { wch: 32 }, // Catatan
+  ];
+
+  const sheetName = `LEGER_${kelas}_${rombel}`.slice(0, 31);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const cleanSchool = schoolName.replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `Format_Nilai_Rapor_Kelas_${kelas}_${rombel}_${cleanSchool}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+}
+
+/**
+ * Ekspor Data Siswa Rombel Binaan ke file CSV dengan BOM UTF-8 (Kompatibel Microsoft Excel & Google Sheets)
+ */
+export function exportRombelToCsv(
+  students: Student[],
+  kelas: string,
+  rombel: string,
+  schoolName: string = 'SD NEGERI'
+) {
+  const headers = [
+    'No',
+    'NIS',
+    'NISN',
+    'Nama Lengkap',
+    'L/P',
+    'Tempat Lahir',
+    'Tanggal Lahir (Lengkap)',
+    'Tanggal Lahir (Standar)',
+    'Agama',
+    'Kelas',
+    'Rombel',
+    'Alamat',
+    'Kelurahan',
+    'Kecamatan',
+    'Kota/Kabupaten',
+    'Provinsi',
+    'Nama Ayah',
+    'Pekerjaan Ayah',
+    'Nama Ibu',
+    'Pekerjaan Ibu',
+    'No HP',
+  ];
+
+  const rows = students.map((s, idx) => [
+    idx + 1,
+    `"${s.nis || ''}"`,
+    `"${s.nisn || ''}"`,
+    `"${(s.namaLengkap || '').replace(/"/g, '""')}"`,
+    `"${s.jenisKelamin || ''}"`,
+    `"${(s.tempatLahir || '').replace(/"/g, '""')}"`,
+    `"${formatTanggalIndonesiaLengkap(s.tanggalLahir).replace(/"/g, '""')}"`,
+    `"${s.tanggalLahir || ''}"`,
+    `"${s.agama || ''}"`,
+    `"${s.kelasSekarang || ''}"`,
+    `"${s.rombel || rombel}"`,
+    `"${(s.alamat || '').replace(/"/g, '""')}"`,
+    `"${(s.kelurahan || '').replace(/"/g, '""')}"`,
+    `"${(s.kecamatan || '').replace(/"/g, '""')}"`,
+    `"${(s.kabupatenKota || '').replace(/"/g, '""')}"`,
+    `"${(s.provinsi || 'Banten').replace(/"/g, '""')}"`,
+    `"${(s.dataAyah?.nama || '').replace(/"/g, '""')}"`,
+    `"${(s.dataAyah?.pekerjaan || '').replace(/"/g, '""')}"`,
+    `"${(s.dataIbu?.nama || '').replace(/"/g, '""')}"`,
+    `"${(s.dataIbu?.pekerjaan || '').replace(/"/g, '""')}"`,
+    `"${s.dataAyah?.noHp || s.dataIbu?.noHp || s.noHp || ''}"`,
+  ]);
+
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  const cleanSchool = schoolName.replace(/[^a-zA-Z0-9]/g, '_');
+  link.download = `Daftar_Siswa_Kelas_${kelas}_${rombel}_${cleanSchool}_${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
 }

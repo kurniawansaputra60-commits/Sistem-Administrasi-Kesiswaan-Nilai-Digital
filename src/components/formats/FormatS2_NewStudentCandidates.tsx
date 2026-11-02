@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { OfficialKop, OfficialSignature } from '../OfficialKop';
 import { useSchool } from '../../context/SchoolContext';
 import { Check, CheckCircle2, UserCheck, Plus, Filter } from 'lucide-react';
+import { formatTempatTanggalLahirLengkap } from '../../utils/dateUtils';
 
 interface FormatS2Props {
   onOpenAddStudent?: () => void;
@@ -142,8 +143,8 @@ export const FormatS2_NewStudentCandidates: React.FC<FormatS2Props> = ({ onOpenA
                     <td className="border border-slate-800 p-2 font-mono font-semibold">{student.nis}</td>
                     <td className="border border-slate-800 p-2 font-bold">{student.namaLengkap}</td>
                     <td className="border border-slate-800 p-2 text-center font-bold">{student.jenisKelamin}</td>
-                    <td className="border border-slate-800 p-2">
-                      {student.tempatLahir}, {student.tanggalLahir}
+                    <td className="border border-slate-800 p-2 text-[10px]">
+                      {formatTempatTanggalLahirLengkap(student.tempatLahir, student.tanggalLahir)}
                     </td>
                     <td className="border border-slate-800 p-2 text-center font-mono">
                       {calculateAgeOnJuly1(student.tanggalLahir)}
