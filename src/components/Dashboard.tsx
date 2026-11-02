@@ -60,6 +60,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
     cloudSyncStatus,
     lastSyncedAt,
     forceSyncToCloud,
+    pullLatestFromCloud,
   } = useSchool();
 
   // Active role: default to admin if not set
@@ -77,6 +78,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
   // State for JSON Backup & Restore
   const [backupMsg, setBackupMsg] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
+
+  const handleManualCloudSync = async () => {
+    setIsManualSyncing(true);
+    try {
+      const ok = await pullLatestFromCloud();
+      if (ok) {
+        setWaliSuccessMsg('Sinkronisasi Cloud Berhasil! Seluruh data kesiswaan dan akun wali kelas terbaru telah dimuat dari Cloud Firebase.');
+      } else {
+        await forceSyncToCloud();
+        setWaliSuccessMsg('Menyinkronkan data dengan Cloud Firebase.');
+      }
+      setTimeout(() => setWaliSuccessMsg(null), 5000);
+    } catch (err: any) {
+      setWaliErrorMsg(`Gagal menyinkronkan cloud: ${err.message}`);
+      setTimeout(() => setWaliErrorMsg(null), 5000);
+    } finally {
+      setIsManualSyncing(false);
+    }
+  };
 
   const handleExportJson = () => {
     try {
@@ -1010,6 +1031,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
               <span>Pengaturan Sekolah</span>
             </button>
             <button
+              onClick={handleManualCloudSync}
+              disabled={isManualSyncing}
+              className="px-4 py-2.5 bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5 active:scale-95 border border-teal-500"
+              title="Tarik data terbaru dari server Cloud Firebase agar semua perangkat sinkron"
+            >
+              <RefreshCw className={`w-4 h-4 ${isManualSyncing ? 'animate-spin' : ''}`} />
+              <span>{isManualSyncing ? 'Menyinkronkan...' : 'Sinkronkan Cloud'}</span>
+            </button>
+            <button
               onClick={() => onNavigate('mysql-database')}
               className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5 active:scale-95 border border-slate-600"
             >
@@ -1019,6 +1049,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
           </div>
         </div>
       </div>
+
+      {/* Notifikasi feedback sinkronisasi / akun */}
+      {waliSuccessMsg && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs flex items-center gap-2.5 font-medium animate-in fade-in shadow-xs">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <span>{waliSuccessMsg}</span>
+        </div>
+      )}
+      {waliErrorMsg && (
+        <div className="p-3.5 bg-rose-50 border border-rose-300 text-rose-900 rounded-xl text-xs flex items-center gap-2.5 font-medium animate-in fade-in shadow-xs">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          <span>{waliErrorMsg}</span>
+        </div>
+      )}
 
       {/* Kartu Ringkasan Statistik Global */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

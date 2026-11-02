@@ -27,14 +27,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleNipLoginSubmit = (e: React.FormEvent) => {
+  const handleNipLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     if (!nipInput.trim()) {
       setErrorMsg('Silakan masukkan Username NIP atau NIK Anda.');
       return;
     }
-    const result = loginWithNipAndPassword(nipInput, passwordInput);
+    const result = await loginWithNipAndPassword(nipInput, passwordInput);
     if (result.success) {
       onClose();
     } else {

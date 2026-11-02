@@ -93,7 +93,7 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({ isOpen
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     updateSchoolProfile(profileForm);
-    const synced = await forceSyncToCloud();
+    const synced = await forceSyncToCloud({ schoolProfile: profileForm });
     if (synced) {
       setSuccessMsg('Pengaturan profil sekolah, kop surat, data wali kelas & TTD digital berhasil tersimpan dan tersinkron ke Cloud Firebase!');
     } else {

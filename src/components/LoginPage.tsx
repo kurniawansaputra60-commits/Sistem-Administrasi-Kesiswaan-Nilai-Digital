@@ -8,16 +8,25 @@ export const LoginPage: React.FC = () => {
   const [passwordNip, setPasswordNip] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleNipLoginSubmit = (e: React.FormEvent) => {
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleNipLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     if (!usernameNip.trim()) {
       setErrorMsg('Silakan masukkan Username NIP, NIK, atau Akun Administrator Anda.');
       return;
     }
-    const result = loginWithNipAndPassword(usernameNip, passwordNip);
-    if (!result.success) {
-      setErrorMsg(result.message || 'NIP, NIK, atau Password tidak cocok dengan daftar akun SD NEGERI 1 CEMPAKA.');
+    setIsVerifying(true);
+    try {
+      const result = await loginWithNipAndPassword(usernameNip, passwordNip);
+      if (!result.success) {
+        setErrorMsg(result.message || 'NIP, NIK, atau Password tidak cocok dengan daftar akun SD NEGERI 1 CEMPAKA.');
+      }
+    } catch {
+      setErrorMsg('Gagal memeriksa akun. Periksa koneksi internet Anda.');
+    } finally {
+      setIsVerifying(false);
     }
   };
 

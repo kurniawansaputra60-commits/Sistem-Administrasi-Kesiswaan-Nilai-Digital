@@ -28,7 +28,7 @@ interface AuthContextType {
   loading: boolean;
   isDemoAccount: boolean;
   signInWithGoogle: () => Promise<void>;
-  loginWithNipAndPassword: (usernameNip: string, passwordNip: string) => { success: boolean; message?: string };
+  loginWithNipAndPassword: (usernameNip: string, passwordNip: string) => Promise<{ success: boolean; message?: string }>;
   loginWithDemoRole: (role: UserRole, customName?: string, customNip?: string, kelasTugas?: string, rombelTugas?: string) => void;
   logout: () => Promise<void>;
   updateRole: (newRole: UserRole, extra?: { nip?: string; kelasTugas?: string; rombelTugas?: string }) => Promise<void>;
@@ -137,10 +137,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const cleanNip = (str: string) => str ? str.replace(/\s+/g, '').trim().toLowerCase() : '';
 
-  const loginWithNipAndPassword = (usernameNip: string, passwordNip: string): { success: boolean; message?: string } => {
+  const loginWithNipAndPassword = async (usernameNip: string, passwordNip: string): Promise<{ success: boolean; message?: string }> => {
     const userNipClean = cleanNip(usernameNip);
     const passNipClean = cleanNip(passwordNip);
-    const activeSchoolProfile = getActiveSchoolProfile();
+    let activeSchoolProfile = getActiveSchoolProfile();
 
     if (!userNipClean) {
       return { success: false, message: 'Harap masukkan Username NIP atau NIK!' };
@@ -195,13 +195,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true };
     }
 
-    // 2. Cek NIP / NIK Wali Kelas (Termasuk Guru Non-ASN / Honorer menggunakan NIK 16 Digit)
-    const matchedTeacher = (activeSchoolProfile.waliKelasList || []).find(
+    // 2. Cek NIP / NIK Wali Kelas dari profil lokal terlebih dahulu
+    let matchedTeacher = (activeSchoolProfile.waliKelasList || []).find(
       w =>
         (w.nip && cleanNip(w.nip) === userNipClean) ||
         (w.nik && cleanNip(w.nik) === userNipClean) ||
         cleanNip(w.nama).includes(userNipClean)
     );
+
+    // 3. Jika belum ditemukan (misal di PC 2/HP yang baru buka), cek langsung dari Cloud Firestore!
+    if (!matchedTeacher) {
+      try {
+        const cloudSnap = await getDoc(doc(db, 'school_data', 'main'));
+        if (cloudSnap.exists()) {
+          const cloudData = cloudSnap.data();
+          if (cloudData.schoolProfile) {
+            activeSchoolProfile = cloudData.schoolProfile;
+            try {
+              localStorage.setItem('adm_sekolah_profile_v3', JSON.stringify(cloudData.schoolProfile));
+            } catch {}
+            matchedTeacher = (cloudData.schoolProfile.waliKelasList || []).find(
+              (w: any) =>
+                (w.nip && cleanNip(w.nip) === userNipClean) ||
+                (w.nik && cleanNip(w.nik) === userNipClean) ||
+                cleanNip(w.nama).includes(userNipClean)
+            );
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal verifikasi kredensial ke cloud:', err);
+      }
+    }
 
     if (matchedTeacher) {
       setIsDemoAccount(true);

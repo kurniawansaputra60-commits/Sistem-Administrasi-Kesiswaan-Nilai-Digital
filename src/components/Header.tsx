@@ -19,7 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   onPrint,
   onToggleMobileMenu,
 }) => {
-  const { schoolProfile, cloudSyncStatus, lastSyncedAt, forceSyncToCloud } = useSchool();
+  const { schoolProfile, cloudSyncStatus, lastSyncedAt, forceSyncToCloud, pullLatestFromCloud } = useSchool();
   const { userProfile, logout } = useAuth();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
@@ -106,15 +106,20 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Realtime Cloud Sync Status Badge */}
           <div
-            onClick={() => forceSyncToCloud()}
+            onClick={async () => {
+              const ok = await pullLatestFromCloud();
+              if (!ok) {
+                await forceSyncToCloud();
+              }
+            }}
             title={
               cloudSyncStatus === 'synced'
-                ? `Sinkronisasi Otomatis Cloud Firebase Firestore Aktif (${lastSyncedAt ? lastSyncedAt.toLocaleTimeString('id-ID') : 'Real-time'}). Klik untuk sinkronisasi paksa.`
+                ? `Sinkronisasi Otomatis Cloud Firebase Firestore Aktif (${lastSyncedAt ? lastSyncedAt.toLocaleTimeString('id-ID') : 'Real-time'}). Klik untuk tarik data terbaru dari Cloud.`
                 : cloudSyncStatus === 'syncing'
-                ? 'Sedang menyimpan perubahan ke Cloud Firestore...'
+                ? 'Sedang menyinkronkan data dengan Cloud Firestore...'
                 : cloudSyncStatus === 'initial_loading'
                 ? 'Menghubungkan ke Cloud Firestore...'
-                : 'Koneksi Firestore gagal. Klik untuk coba sinkronkan ulang.'
+                : 'Koneksi Firestore terputus. Klik untuk coba sinkronkan ulang.'
             }
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all border shadow-2xs ${
               cloudSyncStatus === 'synced'

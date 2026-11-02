@@ -328,6 +328,19 @@ app.post('/api/sync', (req, res) => {
   }
 });
 
+app.get('/api/sync', (_req, res) => {
+  try {
+    const filePath = path.join(dataDir, 'database_kesiswaan.json');
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, 'utf-8');
+      return res.json({ success: true, data: JSON.parse(data) });
+    }
+    return res.json({ success: false, message: 'No server backup found' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Vite middleware in dev or static files in production
 async function startServer() {
   const distPath = path.join(__dirname, 'dist');
