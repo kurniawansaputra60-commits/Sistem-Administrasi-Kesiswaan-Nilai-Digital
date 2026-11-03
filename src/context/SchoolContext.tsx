@@ -51,15 +51,44 @@ enum OperationType {
   WRITE = 'write',
 }
 
+let isFirestoreQuotaExceeded = false;
+let quotaExceededResumeTime = 0;
+
+const markFirestoreQuotaExceeded = (durationMs = 15 * 60 * 1000) => {
+  isFirestoreQuotaExceeded = true;
+  quotaExceededResumeTime = Date.now() + durationMs;
+};
+
+const canAttemptFirestoreWrite = () => {
+  if (!isFirestoreQuotaExceeded) return true;
+  if (Date.now() > quotaExceededResumeTime) {
+    isFirestoreQuotaExceeded = false;
+    return true;
+  }
+  return false;
+};
+
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errMsg = error instanceof Error ? error.message : String(error);
+  const errMsg = (error instanceof Error ? error.message : String(error)).toLowerCase();
   if (
     errMsg.includes('quota') ||
-    errMsg.includes('Batas kuota') ||
+    errMsg.includes('batas kuota') ||
     errMsg.includes('resource-exhausted') ||
     errMsg.includes('offline') ||
-    errMsg.includes('failed-precondition')
+    errMsg.includes('failed-precondition') ||
+    errMsg.includes('timeout') ||
+    errMsg.includes('unavailable') ||
+    errMsg.includes('backoff') ||
+    errMsg.includes('cancelled')
   ) {
+    if (
+      errMsg.includes('quota') ||
+      errMsg.includes('resource-exhausted') ||
+      errMsg.includes('timeout') ||
+      errMsg.includes('unavailable')
+    ) {
+      markFirestoreQuotaExceeded();
+    }
     // Graceful offline and quota fallback without noise
     return;
   }
@@ -569,13 +598,57 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       },
       (err) => {
         handleFirestoreError(err, OperationType.GET, 'school_data/main');
-        // Graceful fallback: local and server data remain active
+        markFirestoreQuotaExceeded();
         setCloudSyncStatus('synced');
         isCloudLoadedRef.current = true;
       }
     );
 
     return () => unsub();
+  }, []);
+
+  // 3. Periodic background poll to Express server for instant multi-device sync
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.hidden || isRemoteUpdateRef.current) return;
+      if (Date.now() - lastLocalWriteAtRef.current < 4000) return;
+
+      fetch('/api/data')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((res) => {
+          if (res?.success && res.data) {
+            const remoteUpdatedAt = readTimestamp(res.data?.updatedAt);
+            const localUpdatedAt = readTimestamp(safeRead<Record<string, any>>(STORAGE_KEYS.PROFILE, {}).updatedAt);
+            if (remoteUpdatedAt > localUpdatedAt) {
+              isRemoteUpdateRef.current = true;
+              applyRemoteSnapshot(res.data, {
+                setSchoolProfile,
+                setStudents,
+                setAttendances,
+                setWarningLetters,
+                setTransferRequests,
+                setTransferOuts,
+                setTransferIns,
+                setMutations,
+                setExamCandidates,
+                setExamSessions,
+                setExamScores,
+                setGradStudies,
+                setAchievements,
+                setCurriculumTargets,
+              });
+              setCloudSyncStatus('synced');
+              setLastSyncedAt(new Date());
+              setTimeout(() => {
+                isRemoteUpdateRef.current = false;
+              }, 150);
+            }
+          }
+        })
+        .catch(() => {});
+    }, 8000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -639,12 +712,17 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setCloudSyncStatus('synced');
       setLastSyncedAt(new Date());
 
-      // 3. Sync to Firebase Firestore in background with timeout protection
-      const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
-      const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
-      Promise.race([firestoreTask, timeoutTask]).catch((err) => {
-        handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
-      });
+      // 3. Sync to Firebase Firestore in background with timeout protection ONLY IF quota not exceeded
+      if (canAttemptFirestoreWrite()) {
+        const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true })
+          .catch((err) => {
+            handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+          });
+        const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
+        Promise.race([firestoreTask, timeoutTask]).catch((err) => {
+          handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+        });
+      }
     }, 600);
 
     return () => {
@@ -706,12 +784,17 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setCloudSyncStatus('synced');
       setLastSyncedAt(new Date());
 
-      // 3. Background sync to Firestore with timeout protection (no UI freezing)
-      const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
-      const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
-      Promise.race([firestoreTask, timeoutTask]).catch((err) => {
-        handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
-      });
+      // 3. Background sync to Firestore with timeout protection (no UI freezing) ONLY IF quota not exceeded
+      if (canAttemptFirestoreWrite()) {
+        const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true })
+          .catch((err) => {
+            handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+          });
+        const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
+        Promise.race([firestoreTask, timeoutTask]).catch((err) => {
+          handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+        });
+      }
 
       return true;
     } catch (err) {
@@ -724,7 +807,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       setCloudSyncStatus('syncing');
       try {
-        const res = await fetch('/api/school-data');
+        const res = await fetch('/api/data');
         if (res.ok) {
           const json = await res.json();
           if (json.success && json.data) {
@@ -757,32 +840,38 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Continue to Firestore fallback
       }
 
-      const snap = await getDoc(doc(db, 'school_data', 'main'));
-      if (snap.exists()) {
-        const data = snap.data() as Record<string, any>;
-        isRemoteUpdateRef.current = true;
-        applyRemoteSnapshot(data, {
-          setSchoolProfile,
-          setStudents,
-          setAttendances,
-          setWarningLetters,
-          setTransferRequests,
-          setTransferOuts,
-          setTransferIns,
-          setMutations,
-          setExamCandidates,
-          setExamSessions,
-          setExamScores,
-          setGradStudies,
-          setAchievements,
-          setCurriculumTargets,
-        });
-        setCloudSyncStatus('synced');
-        setLastSyncedAt(new Date());
-        setTimeout(() => {
-          isRemoteUpdateRef.current = false;
-        }, 150);
-        return true;
+      if (canAttemptFirestoreWrite()) {
+        try {
+          const snap = await getDoc(doc(db, 'school_data', 'main'));
+          if (snap.exists()) {
+            const data = snap.data() as Record<string, any>;
+            isRemoteUpdateRef.current = true;
+            applyRemoteSnapshot(data, {
+              setSchoolProfile,
+              setStudents,
+              setAttendances,
+              setWarningLetters,
+              setTransferRequests,
+              setTransferOuts,
+              setTransferIns,
+              setMutations,
+              setExamCandidates,
+              setExamSessions,
+              setExamScores,
+              setGradStudies,
+              setAchievements,
+              setCurriculumTargets,
+            });
+            setCloudSyncStatus('synced');
+            setLastSyncedAt(new Date());
+            setTimeout(() => {
+              isRemoteUpdateRef.current = false;
+            }, 150);
+            return true;
+          }
+        } catch (err) {
+          handleFirestoreError(err, OperationType.GET, 'school_data/main');
+        }
       }
       setCloudSyncStatus('synced');
       return true;
@@ -1071,7 +1160,20 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(mysqlConfig),
       });
-      const data = await res.json();
+
+      const rawText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        updateMySQLConfig({ isConnected: false });
+        return {
+          success: false,
+          message: `Layanan server sedang bersiap (${res.status || '503'}). Silakan klik tombol "Uji Koneksi TiDB / MySQL" sekali lagi dalam 2 detik.`,
+          errorDetail: 'BACKEND_WARMING_UP',
+        };
+      }
+
       if (data.success) {
         updateMySQLConfig({ isConnected: true, lastSync: new Date().toLocaleTimeString('id-ID') });
         return {
@@ -1090,7 +1192,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updateMySQLConfig({ isConnected: false });
       return {
         success: false,
-        message: `Tidak dapat menghubungi server MySQL/TiDB: ${err.message}.`,
+        message: `Tidak dapat menghubungi server: ${err.message}. Pastikan koneksi internet aktif.`,
       };
     }
   };

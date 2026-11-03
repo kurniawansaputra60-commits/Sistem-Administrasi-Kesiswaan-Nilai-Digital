@@ -43,12 +43,19 @@
             }).join(' ').toLowerCase();
 
             return fullMsg.indexOf('websocket') !== -1 ||
-                   fullMsg.indexOf('vite') !== -1 && fullMsg.indexOf('connect') !== -1 ||
-                   fullMsg.indexOf('vite') !== -1 && fullMsg.indexOf('terhubung') !== -1 ||
+                   (fullMsg.indexOf('vite') !== -1 && fullMsg.indexOf('connect') !== -1) ||
+                   (fullMsg.indexOf('vite') !== -1 && fullMsg.indexOf('terhubung') !== -1) ||
                    fullMsg.indexOf('gagal terhubung') !== -1 ||
                    fullMsg.indexOf('ditutup tanpa dibuka') !== -1 ||
                    fullMsg.indexOf('@vite/client') !== -1 ||
-                   fullMsg.indexOf('failed to connect') !== -1;
+                   fullMsg.indexOf('failed to connect') !== -1 ||
+                   fullMsg.indexOf('quota limit exceeded') !== -1 ||
+                   fullMsg.indexOf('quota exceeded') !== -1 ||
+                   fullMsg.indexOf('resource-exhausted') !== -1 ||
+                   fullMsg.indexOf('maximum backoff delay') !== -1 ||
+                   fullMsg.indexOf('quota metric') !== -1 ||
+                   fullMsg.indexOf('firestore sync notice') !== -1 ||
+                   fullMsg.indexOf('@firebase/firestore') !== -1;
           } catch(err) {
             return false;
           }
@@ -85,7 +92,10 @@
               reasonMsg.indexOf('closed without opened') !== -1 ||
               reasonMsg.indexOf('failed to connect') !== -1 ||
               reasonMsg.indexOf('terhubung') !== -1 ||
-              reasonMsg.indexOf('@vite/client') !== -1
+              reasonMsg.indexOf('@vite/client') !== -1 ||
+              reasonMsg.indexOf('resource-exhausted') !== -1 ||
+              reasonMsg.indexOf('quota') !== -1 ||
+              reasonMsg.indexOf('backoff') !== -1
             ) {
               event.preventDefault();
               event.stopImmediatePropagation();
@@ -101,7 +111,10 @@
               errMsg.indexOf('closed without opened') !== -1 ||
               errMsg.indexOf('failed to connect') !== -1 ||
               errMsg.indexOf('terhubung') !== -1 ||
-              errMsg.indexOf('@vite/client') !== -1
+              errMsg.indexOf('@vite/client') !== -1 ||
+              errMsg.indexOf('resource-exhausted') !== -1 ||
+              errMsg.indexOf('quota') !== -1 ||
+              errMsg.indexOf('backoff') !== -1
             ) {
               event.preventDefault();
               event.stopImmediatePropagation();

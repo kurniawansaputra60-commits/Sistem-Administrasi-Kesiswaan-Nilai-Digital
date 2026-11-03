@@ -50,7 +50,7 @@ async function getMySQLConnection(cfg?: any) {
       password,
       database: targetDb,
       ssl,
-      connectTimeout: 10000,
+      connectTimeout: 6000,
     });
   } catch (err: any) {
     // If unknown database error (ER_BAD_DB_ERROR or 1049), connect without database and auto-create it!
@@ -61,7 +61,7 @@ async function getMySQLConnection(cfg?: any) {
         user,
         password,
         ssl,
-        connectTimeout: 10000,
+        connectTimeout: 6000,
       });
       await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${targetDb}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
       await rootConn.query(`USE \`${targetDb}\``);
@@ -124,10 +124,22 @@ app.post('/api/mysql/test-connection', async (req, res) => {
         : `Koneksi ke database '${database || 'db_kesiswaan_sekolah'}' BERHASIL! (Latency: ${pingTime}ms). Ditemukan ${siswaCount} data siswa di tabel 'siswa'.`,
     });
   } catch (err: any) {
+    let friendlyMsg = err.message || 'Gagal menghubungi database.';
+    const code = err.code || '';
+    if (code === 'ETIMEDOUT') {
+      friendlyMsg = 'Koneksi timeout. Pastikan Anda telah menambahkan IP 0.0.0.0/0 pada Security > IP Access List di TiDB Cloud Console.';
+    } else if (code === 'ENOTFOUND') {
+      friendlyMsg = `Host '${host}' tidak ditemukan. Periksa kembali nama host dari TiDB Cloud Console.`;
+    } else if (code === 'ECONNREFUSED') {
+      friendlyMsg = `Koneksi ditolak pada port ${port || 4000}. Untuk TiDB Cloud gunakan port 4000.`;
+    } else if (code === 'ER_ACCESS_DENIED_ERROR') {
+      friendlyMsg = 'Akses ditolak: User atau Password salah. Periksa kredensial di TiDB Cloud Console.';
+    }
+
     return res.status(200).json({
       success: false,
-      message: `Koneksi gagal: ${err.message}. Periksa Host, Port, User, Password, atau izin IP di TiDB Cloud Console.`,
-      errorDetail: err.code || err.message,
+      message: `Koneksi gagal: ${friendlyMsg}`,
+      errorDetail: code || err.message,
     });
   }
 });
@@ -463,7 +475,7 @@ app.post('/api/mysql/execute-query', async (req, res) => {
 });
 
 // Sync data endpoint: Save and retrieve system data for instant multi-device sync & offline fallback
-app.get('/api/data', (req, res) => {
+const handleGetData = (req: express.Request, res: express.Response) => {
   try {
     const filePath = path.join(dataDir, 'database_kesiswaan.json');
     if (fs.existsSync(filePath)) {
@@ -475,7 +487,10 @@ app.get('/api/data', (req, res) => {
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }
-});
+};
+
+app.get('/api/data', handleGetData);
+app.get('/api/school-data', handleGetData);
 
 app.post('/api/sync', (req, res) => {
   try {

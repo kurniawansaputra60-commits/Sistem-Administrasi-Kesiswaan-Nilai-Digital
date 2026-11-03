@@ -153,7 +153,14 @@ export const MySQLDatabaseCenter: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: mysqlConfig, students, schoolProfile }),
       });
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        setActionMsg({ type: 'error', text: `Server sedang merespons (${res.status}). Silakan ulangi dalam beberapa detik.` });
+        return;
+      }
       if (data.success) {
         setActionMsg({ type: 'success', text: data.message });
         // Refresh connection test info
@@ -178,7 +185,14 @@ export const MySQLDatabaseCenter: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: mysqlConfig }),
       });
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        setActionMsg({ type: 'error', text: `Server sedang merespons (${res.status}). Silakan ulangi dalam beberapa detik.` });
+        return;
+      }
       if (data.success) {
         if (data.schoolProfile) updateSchoolProfile(data.schoolProfile);
         if (Array.isArray(data.students) && data.students.length > 0) {
@@ -207,7 +221,18 @@ export const MySQLDatabaseCenter: React.FC = () => {
         body: JSON.stringify({ config: mysqlConfig, query: consoleQuery }),
       });
       const duration = Date.now() - startTime;
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        setQueryResult({
+          success: false,
+          error: `Server sedang merespons (${res.status}). Silakan coba eksekusi query kembali.`,
+          duration,
+        });
+        return;
+      }
       if (data.success) {
         setQueryResult({
           success: true,
