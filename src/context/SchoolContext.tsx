@@ -1154,22 +1154,36 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const testMySQLConnection = async () => {
-    try {
+    const doFetch = async () => {
       const res = await fetch('/api/mysql/test-connection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(mysqlConfig),
       });
-
       const rawText = await res.text();
-      let data: any;
+      let data: any = null;
       try {
         data = JSON.parse(rawText);
-      } catch {
+      } catch {}
+      return { res, data, rawText };
+    };
+
+    try {
+      let { res, data } = await doFetch();
+
+      // If backend was warming up (e.g. non-JSON during start), auto-retry once after 1s!
+      if (!data) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        const retry = await doFetch();
+        res = retry.res;
+        data = retry.data;
+      }
+
+      if (!data) {
         updateMySQLConfig({ isConnected: false });
         return {
           success: false,
-          message: `Layanan server sedang bersiap (${res.status || '503'}). Silakan klik tombol "Uji Koneksi TiDB / MySQL" sekali lagi dalam 2 detik.`,
+          message: `Layanan server backend sedang bersiap (${res.status || '503'}). Silakan klik tombol "Uji Koneksi" sekali lagi.`,
           errorDetail: 'BACKEND_WARMING_UP',
         };
       }

@@ -104,11 +104,11 @@ export const MySQLDatabaseCenter: React.FC = () => {
       return;
     }
 
-    // Pattern 2: CLI format mysql -u user -h host -P port -D database
-    const cliHost = clean.match(/-h\s+['"]?([^'"\s]+)['"]?/i);
-    const cliUser = clean.match(/-u\s+['"]?([^'"\s]+)['"]?/i);
-    const cliPort = clean.match(/-P\s+(\d+)/i);
-    const cliDb = clean.match(/-D\s+['"]?([^'"\s]+)['"]?/i);
+    // Pattern 2: CLI format mysql -u user -h host -P port -D database (also supporting --user, --host, etc.)
+    const cliHost = clean.match(/(?:-h|--host)[=\s]+['"]?([^'"\s]+)['"]?/i);
+    const cliUser = clean.match(/(?:-u|--user)[=\s]+['"]?([^'"\s]+)['"]?/i);
+    const cliPort = clean.match(/(?:-P|--port)[=\s]+(\d+)/i);
+    const cliDb = clean.match(/(?:-D|--database)[=\s]+['"]?([^'"\s]+)['"]?/i);
 
     if (cliHost || cliUser) {
       const updates: any = {};
@@ -517,6 +517,11 @@ export const MySQLDatabaseCenter: React.FC = () => {
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono focus:outline-none focus:border-blue-600"
                     placeholder="2w1x...root"
                   />
+                  {mysqlConfig.host.includes('tidbcloud.com') && mysqlConfig.user && !mysqlConfig.user.includes('.') && (
+                    <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 block mt-1 font-medium leading-tight">
+                      ⚠️ TiDB Cloud Serverless memerlukan prefix cluster (contoh: <strong>xxxx.root</strong>, bukan hanya <strong>root</strong>).
+                    </span>
+                  )}
                 </div>
 
                 <div>

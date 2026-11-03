@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 app.use(express.json({ limit: '10mb' }));
@@ -126,7 +126,10 @@ app.post('/api/mysql/test-connection', async (req, res) => {
   } catch (err: any) {
     let friendlyMsg = err.message || 'Gagal menghubungi database.';
     const code = err.code || '';
-    if (code === 'ETIMEDOUT') {
+    const rawMsg = String(err.message || '');
+    if (rawMsg.includes('Missing user name prefix')) {
+      friendlyMsg = 'Username TiDB Cloud Serverless harus menyertakan prefix cluster (contoh: "xxxx.root", bukan hanya "root"). Silakan salin username lengkap dari menu Connect di TiDB Cloud Console.';
+    } else if (code === 'ETIMEDOUT') {
       friendlyMsg = 'Koneksi timeout. Pastikan Anda telah menambahkan IP 0.0.0.0/0 pada Security > IP Access List di TiDB Cloud Console.';
     } else if (code === 'ENOTFOUND') {
       friendlyMsg = `Host '${host}' tidak ditemukan. Periksa kembali nama host dari TiDB Cloud Console.`;
@@ -142,6 +145,11 @@ app.post('/api/mysql/test-connection', async (req, res) => {
       errorDetail: code || err.message,
     });
   }
+});
+
+// Also support GET for quick health/status check of test-connection endpoint
+app.get('/api/mysql/test-connection', (_req, res) => {
+  res.json({ success: true, message: 'Endpoint pengujian koneksi MySQL/TiDB Cloud siap menerima permintaan POST.' });
 });
 
 // Push current application data directly into live MySQL / TiDB Cloud tables
@@ -521,6 +529,11 @@ async function startServer() {
   const distPath = path.join(__dirname, 'dist');
   const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
 
+  // Start HTTP listener immediately so Nginx and /api/* endpoints are available in <10ms
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`Server administrasi kesiswaan aktif di port ${PORT}`);
+  });
+
   if (!isProduction) {
     try {
       const { createServer } = await import('vite');
@@ -544,10 +557,6 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
-
-  app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`Server administrasi kesiswaan aktif di port ${PORT}`);
-  });
 }
 
 startServer();
