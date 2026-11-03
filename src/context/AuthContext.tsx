@@ -83,28 +83,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user) {
         setIsDemoAccount(false);
         try {
-          const ref = doc(db, 'users', user.uid);
-          const snap = await getDoc(ref);
-          if (snap.exists()) {
-            const data = snap.data() as UserProfile;
-            setUserProfile(data);
-          } else {
-            // Profil awal baru
-            const initialRole: UserRole = user.email?.includes('headmaster') || user.email?.includes('kepala') ? 'kepala_sekolah' : 'guru_kelas';
-            const newProfile: UserProfile = {
-              uid: user.uid,
-              email: user.email || 'user@sdn1cempaka.sch.id',
-              displayName: user.displayName || 'Pengguna Terdaftar',
-              role: initialRole,
-              photoURL: user.photoURL || undefined,
-              kelasTugas: '1',
-              rombelTugas: 'A',
-            };
-            await setDoc(ref, newProfile);
-            setUserProfile(newProfile);
+          const isQuota = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('firestore_quota_exhausted') === 'true';
+          if (!isQuota) {
+            const ref = doc(db, 'users', user.uid);
+            const snap = await getDoc(ref);
+            if (snap.exists()) {
+              const data = snap.data() as UserProfile;
+              setUserProfile(data);
+            } else {
+              // Profil awal baru
+              const initialRole: UserRole = user.email?.includes('headmaster') || user.email?.includes('kepala') ? 'kepala_sekolah' : 'guru_kelas';
+              const newProfile: UserProfile = {
+                uid: user.uid,
+                email: user.email || 'user@sdn1cempaka.sch.id',
+                displayName: user.displayName || 'Pengguna Terdaftar',
+                role: initialRole,
+                photoURL: user.photoURL || undefined,
+                kelasTugas: '1',
+                rombelTugas: 'A',
+              };
+              try {
+                await setDoc(ref, newProfile);
+              } catch (writeErr: any) {
+                if (writeErr?.code === 'resource-exhausted') {
+                  try { sessionStorage.setItem('firestore_quota_exhausted', 'true'); } catch {}
+                }
+              }
+              setUserProfile(newProfile);
+            }
           }
-        } catch (err) {
-          console.error('Error fetching user profile from Firestore:', err);
+        } catch (err: any) {
+          if (err?.code === 'resource-exhausted') {
+            try { sessionStorage.setItem('firestore_quota_exhausted', 'true'); } catch {}
+          }
           if (!userProfile) {
             setUserProfile({
               uid: user.uid,
@@ -203,18 +214,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cleanNip(w.nama).includes(userNipClean)
     );
 
-    // 3. Jika belum ditemukan (misal di PC 2/HP yang baru buka), cek langsung dari Cloud Firestore!
+    // 3. Jika belum ditemukan (misal di PC 2/HP yang baru buka), cek dari Server Backup & Cloud!
     if (!matchedTeacher) {
       try {
-        const cloudSnap = await getDoc(doc(db, 'school_data', 'main'));
-        if (cloudSnap.exists()) {
-          const cloudData = cloudSnap.data();
-          if (cloudData.schoolProfile) {
-            activeSchoolProfile = cloudData.schoolProfile;
+        const srvRes = await fetch('/api/data').catch(() => null);
+        if (srvRes && srvRes.ok) {
+          const srvJson = await srvRes.json();
+          if (srvJson?.data?.schoolProfile) {
+            activeSchoolProfile = srvJson.data.schoolProfile;
             try {
-              localStorage.setItem('adm_sekolah_profile_v3', JSON.stringify(cloudData.schoolProfile));
+              localStorage.setItem('adm_sekolah_profile_v3', JSON.stringify(srvJson.data.schoolProfile));
             } catch {}
-            matchedTeacher = (cloudData.schoolProfile.waliKelasList || []).find(
+            matchedTeacher = (srvJson.data.schoolProfile.waliKelasList || []).find(
               (w: any) =>
                 (w.nip && cleanNip(w.nip) === userNipClean) ||
                 (w.nik && cleanNip(w.nik) === userNipClean) ||
@@ -223,7 +234,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       } catch (err) {
-        console.warn('Gagal verifikasi kredensial ke cloud:', err);
+        console.warn('Gagal verifikasi kredensial ke server:', err);
+      }
+
+      if (!matchedTeacher) {
+        try {
+          const isQuota = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('firestore_quota_exhausted') === 'true';
+          if (!isQuota) {
+            const cloudSnap = await getDoc(doc(db, 'school_data', 'main'));
+            if (cloudSnap.exists()) {
+              const cloudData = cloudSnap.data();
+              if (cloudData.schoolProfile) {
+                activeSchoolProfile = cloudData.schoolProfile;
+                try {
+                  localStorage.setItem('adm_sekolah_profile_v3', JSON.stringify(cloudData.schoolProfile));
+                } catch {}
+                matchedTeacher = (cloudData.schoolProfile.waliKelasList || []).find(
+                  (w: any) =>
+                    (w.nip && cleanNip(w.nip) === userNipClean) ||
+                    (w.nik && cleanNip(w.nik) === userNipClean) ||
+                    cleanNip(w.nama).includes(userNipClean)
+                );
+              }
+            }
+          }
+        } catch (err: any) {
+          if (err?.code === 'resource-exhausted') {
+            try { sessionStorage.setItem('firestore_quota_exhausted', 'true'); } catch {}
+          }
+          console.warn('Gagal verifikasi kredensial ke cloud:', err);
+        }
       }
     }
 

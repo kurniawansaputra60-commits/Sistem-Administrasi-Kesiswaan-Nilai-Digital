@@ -51,16 +51,26 @@ enum OperationType {
   WRITE = 'write',
 }
 
+export const FIRESTORE_UPGRADE_URL =
+  'https://console.firebase.google.com/project/psyched-ray-583d0/firestore/databases/ai-studio-sistemadministra-35319920-c082-4b38-9266-ec87912f5f9e/data?openUpgradeDialog=true';
+
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errMsg = error instanceof Error ? error.message : String(error);
+  const errCode = (error as any)?.code || '';
   if (
+    errCode === 'resource-exhausted' ||
     errMsg.includes('quota') ||
+    errMsg.includes('Quota') ||
     errMsg.includes('Batas kuota') ||
     errMsg.includes('resource-exhausted') ||
     errMsg.includes('offline') ||
-    errMsg.includes('failed-precondition')
+    errMsg.includes('failed-precondition') ||
+    errMsg.includes('timeout')
   ) {
-    // Graceful offline and quota fallback without noise
+    try {
+      localStorage.setItem('adm_firestore_quota_exhausted', 'true');
+      sessionStorage.setItem('firestore_quota_exhausted', 'true');
+    } catch {}
     return;
   }
   const errInfo = {
@@ -95,6 +105,8 @@ interface SchoolContextType {
 
   cloudSyncStatus: 'initial_loading' | 'synced' | 'syncing' | 'error';
   lastSyncedAt: Date | null;
+  isQuotaExhausted: boolean;
+  firestoreUpgradeUrl: string;
   forceSyncToCloud: (customPayload?: Record<string, any>) => Promise<boolean>;
   pullLatestFromCloud: () => Promise<boolean>;
 
@@ -342,6 +354,21 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'initial_loading' | 'synced' | 'syncing' | 'error'>('initial_loading');
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [isQuotaExhausted, setIsQuotaExhausted] = useState<boolean>(() => {
+    try {
+      return (
+        localStorage.getItem('adm_firestore_quota_exhausted') === 'true' ||
+        sessionStorage.getItem('firestore_quota_exhausted') === 'true'
+      );
+    } catch {
+      return false;
+    }
+  });
+
+  const isQuotaExhaustedRef = useRef(isQuotaExhausted);
+  useEffect(() => {
+    isQuotaExhaustedRef.current = isQuotaExhausted;
+  }, [isQuotaExhausted]);
 
   const isCloudLoadedRef = useRef(false);
   const isRemoteUpdateRef = useRef(false);
@@ -387,68 +414,90 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isCloudLoadedRef.current = true;
       });
 
-    // 2. Realtime listener to Firestore
-    const unsub = onSnapshot(
-      doc(db, 'school_data', 'main'),
-      (snap) => {
-        if (!snap.exists()) {
+    // 2. Realtime listener to Firestore (only if quota is not exhausted to prevent backoff spam)
+    let unsub: (() => void) | null = null;
+    if (!isQuotaExhaustedRef.current) {
+      unsub = onSnapshot(
+        doc(db, 'school_data', 'main'),
+        (snap) => {
+          if (!snap.exists()) {
+            isCloudLoadedRef.current = true;
+            setCloudSyncStatus('synced');
+            return;
+          }
+
+          const data = snap.data() as Record<string, any>;
+          const remoteUpdatedAt = readTimestamp(data?.updatedAt);
+          const localUpdatedAt = readTimestamp(safeRead<Record<string, any>>(STORAGE_KEYS.PROFILE, {}).updatedAt);
+
+          const canApplyRemote = !(
+            remoteUpdatedAt > 0 &&
+            localUpdatedAt > 0 &&
+            remoteUpdatedAt < localUpdatedAt
+          );
+
+          if (!canApplyRemote) {
+            isCloudLoadedRef.current = true;
+            setCloudSyncStatus('synced');
+            return;
+          }
+
+          isRemoteUpdateRef.current = true;
+
+          applyRemoteSnapshot(data, {
+            setSchoolProfile,
+            setStudents,
+            setAttendances,
+            setWarningLetters,
+            setTransferRequests,
+            setTransferOuts,
+            setTransferIns,
+            setMutations,
+            setExamCandidates,
+            setExamSessions,
+            setExamScores,
+            setGradStudies,
+            setAchievements,
+            setCurriculumTargets,
+          });
+
           isCloudLoadedRef.current = true;
           setCloudSyncStatus('synced');
-          return;
-        }
+          setLastSyncedAt(new Date());
 
-        const data = snap.data() as Record<string, any>;
-        const remoteUpdatedAt = readTimestamp(data?.updatedAt);
-        const localUpdatedAt = readTimestamp(safeRead<Record<string, any>>(STORAGE_KEYS.PROFILE, {}).updatedAt);
-
-        const canApplyRemote = !(
-          remoteUpdatedAt > 0 &&
-          localUpdatedAt > 0 &&
-          remoteUpdatedAt < localUpdatedAt
-        );
-
-        if (!canApplyRemote) {
-          isCloudLoadedRef.current = true;
+          setTimeout(() => {
+            isRemoteUpdateRef.current = false;
+          }, 150);
+        },
+        (err) => {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          const errCode = (err as any)?.code || '';
+          if (
+            errCode === 'resource-exhausted' ||
+            errMsg.includes('quota') ||
+            errMsg.includes('Quota') ||
+            errMsg.includes('resource-exhausted')
+          ) {
+            isQuotaExhaustedRef.current = true;
+            setIsQuotaExhausted(true);
+            try {
+              sessionStorage.setItem('firestore_quota_exhausted', 'true');
+            } catch {}
+          }
+          handleFirestoreError(err, OperationType.GET, 'school_data/main');
+          // Graceful fallback: local and server data remain active
           setCloudSyncStatus('synced');
-          return;
+          isCloudLoadedRef.current = true;
         }
+      );
+    } else {
+      isCloudLoadedRef.current = true;
+      setCloudSyncStatus('synced');
+    }
 
-        isRemoteUpdateRef.current = true;
-
-        const applied = applyRemoteSnapshot(data, {
-          setSchoolProfile,
-          setStudents,
-          setAttendances,
-          setWarningLetters,
-          setTransferRequests,
-          setTransferOuts,
-          setTransferIns,
-          setMutations,
-          setExamCandidates,
-          setExamSessions,
-          setExamScores,
-          setGradStudies,
-          setAchievements,
-          setCurriculumTargets,
-        });
-
-        isCloudLoadedRef.current = true;
-        setCloudSyncStatus('synced');
-        setLastSyncedAt(new Date());
-
-        setTimeout(() => {
-          isRemoteUpdateRef.current = false;
-        }, 150);
-      },
-      (err) => {
-        handleFirestoreError(err, OperationType.GET, 'school_data/main');
-        // Graceful fallback: local and server data remain active
-        setCloudSyncStatus('synced');
-        isCloudLoadedRef.current = true;
-      }
-    );
-
-    return () => unsub();
+    return () => {
+      if (unsub) unsub();
+    };
   }, []);
 
   useEffect(() => {
@@ -512,12 +561,28 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setCloudSyncStatus('synced');
       setLastSyncedAt(new Date());
 
-      // 3. Sync to Firebase Firestore in background with timeout protection
-      const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
-      const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
-      Promise.race([firestoreTask, timeoutTask]).catch((err) => {
-        handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
-      });
+      // 3. Sync to Firebase Firestore only if quota has NOT been exceeded
+      if (!isQuotaExhaustedRef.current) {
+        const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
+        const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
+        Promise.race([firestoreTask, timeoutTask]).catch((err) => {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          const errCode = (err as any)?.code || '';
+          if (
+            errCode === 'resource-exhausted' ||
+            errMsg.includes('quota') ||
+            errMsg.includes('Quota') ||
+            errMsg.includes('resource-exhausted')
+          ) {
+            isQuotaExhaustedRef.current = true;
+            setIsQuotaExhausted(true);
+            try {
+              sessionStorage.setItem('firestore_quota_exhausted', 'true');
+            } catch {}
+          }
+          handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+        });
+      }
     }, 600);
 
     return () => {
@@ -579,12 +644,28 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setCloudSyncStatus('synced');
       setLastSyncedAt(new Date());
 
-      // 3. Background sync to Firestore with timeout protection (no UI freezing)
-      const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
-      const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
-      Promise.race([firestoreTask, timeoutTask]).catch((err) => {
-        handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
-      });
+      // 3. Background sync to Firestore with timeout protection (only if quota not exhausted)
+      if (!isQuotaExhaustedRef.current) {
+        const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
+        const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
+        Promise.race([firestoreTask, timeoutTask]).catch((err) => {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          const errCode = (err as any)?.code || '';
+          if (
+            errCode === 'resource-exhausted' ||
+            errMsg.includes('quota') ||
+            errMsg.includes('Quota') ||
+            errMsg.includes('resource-exhausted')
+          ) {
+            isQuotaExhaustedRef.current = true;
+            setIsQuotaExhausted(true);
+            try {
+              sessionStorage.setItem('firestore_quota_exhausted', 'true');
+            } catch {}
+          }
+          handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+        });
+      }
 
       return true;
     } catch (err) {
@@ -630,32 +711,53 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Continue to Firestore fallback
       }
 
-      const snap = await getDoc(doc(db, 'school_data', 'main'));
-      if (snap.exists()) {
-        const data = snap.data() as Record<string, any>;
-        isRemoteUpdateRef.current = true;
-        applyRemoteSnapshot(data, {
-          setSchoolProfile,
-          setStudents,
-          setAttendances,
-          setWarningLetters,
-          setTransferRequests,
-          setTransferOuts,
-          setTransferIns,
-          setMutations,
-          setExamCandidates,
-          setExamSessions,
-          setExamScores,
-          setGradStudies,
-          setAchievements,
-          setCurriculumTargets,
-        });
-        setCloudSyncStatus('synced');
-        setLastSyncedAt(new Date());
-        setTimeout(() => {
-          isRemoteUpdateRef.current = false;
-        }, 150);
-        return true;
+      // Check Firestore only if quota is available
+      if (!isQuotaExhaustedRef.current) {
+        try {
+          const snap = await getDoc(doc(db, 'school_data', 'main'));
+          if (snap.exists()) {
+            const data = snap.data() as Record<string, any>;
+            isRemoteUpdateRef.current = true;
+            applyRemoteSnapshot(data, {
+              setSchoolProfile,
+              setStudents,
+              setAttendances,
+              setWarningLetters,
+              setTransferRequests,
+              setTransferOuts,
+              setTransferIns,
+              setMutations,
+              setExamCandidates,
+              setExamSessions,
+              setExamScores,
+              setGradStudies,
+              setAchievements,
+              setCurriculumTargets,
+            });
+            setCloudSyncStatus('synced');
+            setLastSyncedAt(new Date());
+            setTimeout(() => {
+              isRemoteUpdateRef.current = false;
+            }, 150);
+            return true;
+          }
+        } catch (err: any) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          const errCode = (err as any)?.code || '';
+          if (
+            errCode === 'resource-exhausted' ||
+            errMsg.includes('quota') ||
+            errMsg.includes('Quota') ||
+            errMsg.includes('resource-exhausted')
+          ) {
+            isQuotaExhaustedRef.current = true;
+            setIsQuotaExhausted(true);
+            try {
+              sessionStorage.setItem('firestore_quota_exhausted', 'true');
+            } catch {}
+          }
+          handleFirestoreError(err, OperationType.GET, 'school_data/main');
+        }
       }
       setCloudSyncStatus('synced');
       return true;
@@ -1072,6 +1174,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         mysqlConfig,
         cloudSyncStatus,
         lastSyncedAt,
+        isQuotaExhausted,
+        firestoreUpgradeUrl: FIRESTORE_UPGRADE_URL,
         forceSyncToCloud,
         pullLatestFromCloud,
         updateSchoolProfile,

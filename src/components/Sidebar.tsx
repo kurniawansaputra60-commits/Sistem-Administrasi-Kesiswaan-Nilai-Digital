@@ -117,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { key: 'dashboard', label: 'Ringkasan Dashboard', icon: LayoutDashboard },
         { key: 'excel-import', label: 'Import & Export Excel', icon: FileSpreadsheet },
-        { key: 'mysql-database', label: 'Pusat Database MySQL', icon: Database },
+        { key: 'mysql-database', label: 'Integrasi Cloud & Database TiDB', icon: Database },
         { key: 'school-settings', label: 'Pengaturan Kop & Wali Kelas', icon: Settings },
       ],
     },

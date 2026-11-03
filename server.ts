@@ -23,8 +23,14 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-// Import TiDB Cloud / MySQL2 Pool Configuration
-import pool, { checkDatabaseHealth, executeQuery } from './src/config/db.ts';
+// Import TiDB Cloud / MySQL2 Pool Configuration & Storage Helpers
+import pool, {
+  checkDatabaseHealth,
+  executeQuery,
+  initTiDBSchemas,
+  saveSchoolDataToTiDB,
+  loadSchoolDataFromTiDB,
+} from './src/config/db.ts';
 
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
@@ -42,6 +48,16 @@ app.get('/api/database/health', async (_req, res) => {
     return res.status(200).json({ success: true, ...health });
   } else {
     return res.status(503).json({ success: false, ...health });
+  }
+});
+
+// TiDB Cloud Auto Table Schema Initialization Endpoint
+app.post('/api/tidb/init-tables', async (_req, res) => {
+  const result = await initTiDBSchemas();
+  if (result.success) {
+    return res.status(200).json(result);
+  } else {
+    return res.status(500).json(result);
   }
 });
 
@@ -413,40 +429,58 @@ app.post('/api/mysql/pull', async (req, res) => {
   }
 });
 
-// Sync data endpoint: Save and retrieve system data for instant multi-device sync & offline fallback
-app.get('/api/data', (req, res) => {
+// Sync data endpoint: Save and retrieve system data for instant multi-device sync, TiDB Cloud, and offline fallback
+app.get(['/api/data', '/api/sync', '/api/school-data'], async (_req, res) => {
   try {
+    // 1. Prioritaskan pengambilan dari TiDB Cloud jika terhubung
+    try {
+      const cloudData = await loadSchoolDataFromTiDB();
+      if (cloudData) {
+        return res.json({ success: true, source: 'tidb_cloud', data: cloudData });
+      }
+    } catch (e) {
+      console.warn('[TiDB Read Warning]:', e);
+    }
+
+    // 2. Fallback ke disk lokal data/database_kesiswaan.json
     const filePath = path.join(dataDir, 'database_kesiswaan.json');
     if (fs.existsSync(filePath)) {
       const rawData = fs.readFileSync(filePath, 'utf-8');
       const parsed = JSON.parse(rawData);
-      return res.json({ success: true, data: parsed });
+      return res.json({ success: true, source: 'server_disk', data: parsed });
     }
+
     return res.json({ success: true, data: null });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.post('/api/sync', (req, res) => {
+app.post('/api/sync', async (req, res) => {
   try {
     const payload = req.body;
-    const filePath = path.join(dataDir, 'database_kesiswaan.json');
-    fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf-8');
-    res.json({ success: true, message: 'Data kesiswaan berhasil disinkronkan ke server.' });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.get('/api/sync', (_req, res) => {
-  try {
-    const filePath = path.join(dataDir, 'database_kesiswaan.json');
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath, 'utf-8');
-      return res.json({ success: true, data: JSON.parse(data) });
+    
+    // 1. Tulis ke file disk server
+    try {
+      const filePath = path.join(dataDir, 'database_kesiswaan.json');
+      fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf-8');
+    } catch (e) {
+      console.warn('Gagal menulis cadangan lokal data/database_kesiswaan.json:', e);
     }
-    return res.json({ success: false, message: 'No server backup found' });
+
+    // 2. Simpan juga ke TiDB Cloud jika terhubung
+    let tidbSaved = false;
+    try {
+      tidbSaved = await saveSchoolDataToTiDB(payload);
+    } catch (e) {
+      console.warn('Gagal sinkron ke TiDB Cloud:', e);
+    }
+
+    res.json({
+      success: true,
+      message: 'Data kesiswaan berhasil disinkronkan ke server.',
+      tidbSaved,
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -481,9 +515,14 @@ async function startServer() {
     });
   }
 
-  app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`Server administrasi kesiswaan aktif di port ${PORT}`);
-  });
+  // Hanya jalankan app.listen jika bukan dipanggil sebagai serverless function Vercel
+  if (process.env.VERCEL !== '1') {
+    app.listen(Number(PORT), '0.0.0.0', () => {
+      console.log(`Server administrasi kesiswaan aktif di port ${PORT}`);
+    });
+  }
 }
 
 startServer();
+
+export default app;

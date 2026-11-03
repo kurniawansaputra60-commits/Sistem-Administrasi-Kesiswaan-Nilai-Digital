@@ -19,7 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   onPrint,
   onToggleMobileMenu,
 }) => {
-  const { schoolProfile, cloudSyncStatus, lastSyncedAt, forceSyncToCloud, pullLatestFromCloud } = useSchool();
+  const { schoolProfile, cloudSyncStatus, lastSyncedAt, isQuotaExhausted, forceSyncToCloud, pullLatestFromCloud } = useSchool();
   const { userProfile, logout } = useAuth();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
@@ -113,7 +113,9 @@ export const Header: React.FC<HeaderProps> = ({
               }
             }}
             title={
-              cloudSyncStatus === 'synced'
+              isQuotaExhausted
+                ? `Batas kuota harian gratis Firebase Firestore tercapai. Data Anda tetap tersimpan 100% aman di memori lokal & server cadangan (${lastSyncedAt ? lastSyncedAt.toLocaleTimeString('id-ID') : 'Real-time'}). Kuota akan direset otomatis esok hari.`
+                : cloudSyncStatus === 'synced'
                 ? `Sinkronisasi Otomatis Cloud Firebase Firestore Aktif (${lastSyncedAt ? lastSyncedAt.toLocaleTimeString('id-ID') : 'Real-time'}). Klik untuk tarik data terbaru dari Cloud.`
                 : cloudSyncStatus === 'syncing'
                 ? 'Sedang menyinkronkan data dengan Cloud Firestore...'
@@ -122,7 +124,9 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'Koneksi Firestore terputus. Klik untuk coba sinkronkan ulang.'
             }
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all border shadow-2xs ${
-              cloudSyncStatus === 'synced'
+              isQuotaExhausted
+                ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                : cloudSyncStatus === 'synced'
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
                 : cloudSyncStatus === 'syncing' || cloudSyncStatus === 'initial_loading'
                 ? 'bg-amber-50 text-amber-800 border-amber-300'
@@ -130,7 +134,9 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <span className="relative flex h-2 w-2">
-              {cloudSyncStatus === 'synced' ? (
+              {isQuotaExhausted ? (
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              ) : cloudSyncStatus === 'synced' ? (
                 <>
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -143,7 +149,9 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
             <Cloud className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden sm:inline text-[11px] font-bold">
-              {cloudSyncStatus === 'synced'
+              {isQuotaExhausted
+                ? 'Tersimpan Lokal & Server'
+                : cloudSyncStatus === 'synced'
                 ? 'Cloud Firestore: Realtime'
                 : cloudSyncStatus === 'syncing'
                 ? 'Menyimpan ke Cloud...'

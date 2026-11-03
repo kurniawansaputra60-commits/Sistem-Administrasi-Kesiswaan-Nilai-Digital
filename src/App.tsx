@@ -8,6 +8,7 @@ import { SchoolProvider } from './context/SchoolContext';
 import { useAuth } from './context/AuthContext';
 import { Sidebar, NavItemKey } from './components/Sidebar';
 import { Header } from './components/Header';
+import { QuotaNotificationBanner } from './components/QuotaNotificationBanner';
 import { Dashboard } from './components/Dashboard';
 import { StudentModal } from './components/StudentModal';
 import { SchoolSettingsModal } from './components/SchoolSettingsModal';
@@ -175,6 +176,7 @@ function MainApp() {
           formatTag={currentConfig.formatTag}
           onToggleMobileMenu={() => setIsMobileMenuOpen(prev => !prev)}
         />
+        <QuotaNotificationBanner onNavigateToDatabase={() => handleSelectTab('mysql-database')} />
 
         <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto max-w-[1600px] w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full print:overflow-visible min-w-0">
           {activeTab === 'dashboard' && (
