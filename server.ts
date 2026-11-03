@@ -32,52 +32,181 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Helper to obtain MySQL connection
+// Helper to obtain MySQL / TiDB Cloud connection
 async function getMySQLConnection(cfg?: any) {
-  return await mysql.createConnection({
-    host: cfg?.host || process.env.MYSQL_HOST || 'localhost',
-    port: Number(cfg?.port || process.env.MYSQL_PORT || 3306),
-    user: cfg?.user || process.env.MYSQL_USER || 'root',
-    password: cfg?.password !== undefined ? cfg.password : process.env.MYSQL_PASSWORD || '',
-    database: cfg?.database || process.env.MYSQL_DATABASE || 'db_kesiswaan_sekolah',
-    connectTimeout: 5000,
-  });
+  const host = cfg?.host || process.env.MYSQL_HOST || 'localhost';
+  const port = Number(cfg?.port || process.env.MYSQL_PORT || 3306);
+  const isTiDB = host.toLowerCase().includes('tidbcloud.com') || host.toLowerCase().includes('tidb') || port === 4000;
+  const targetDb = cfg?.database || process.env.MYSQL_DATABASE || 'db_kesiswaan_sekolah';
+  const user = cfg?.user || process.env.MYSQL_USER || 'root';
+  const password = cfg?.password !== undefined ? cfg.password : process.env.MYSQL_PASSWORD || '';
+  const ssl = isTiDB || cfg?.useSSL ? { minVersion: 'TLSv1.2', rejectUnauthorized: false } : undefined;
+
+  try {
+    return await mysql.createConnection({
+      host,
+      port: isTiDB && port === 3306 ? 4000 : port,
+      user,
+      password,
+      database: targetDb,
+      ssl,
+      connectTimeout: 10000,
+    });
+  } catch (err: any) {
+    // If unknown database error (ER_BAD_DB_ERROR or 1049), connect without database and auto-create it!
+    if (err.code === 'ER_BAD_DB_ERROR' || err.errno === 1049 || String(err.message).includes('Unknown database')) {
+      const rootConn = await mysql.createConnection({
+        host,
+        port: isTiDB && port === 3306 ? 4000 : port,
+        user,
+        password,
+        ssl,
+        connectTimeout: 10000,
+      });
+      await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${targetDb}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+      await rootConn.query(`USE \`${targetDb}\``);
+      return rootConn;
+    }
+    throw err;
+  }
 }
 
-// Test connection to live MySQL database and count existing records
+// Test connection to live MySQL / TiDB Cloud database
 app.post('/api/mysql/test-connection', async (req, res) => {
   const { host, port, user, password, database } = req.body;
+  const startTime = Date.now();
   try {
     const connection = await getMySQLConnection({ host, port, user, password, database });
     await connection.ping();
+    const pingTime = Date.now() - startTime;
 
-    // Check if tables exist
-    let siswaCount = 0;
+    // Check server version
+    let serverVersion = 'MySQL';
+    let isTiDB = false;
     try {
-      const [rows]: any = await connection.query('SELECT COUNT(*) as count FROM `siswa`');
-      siswaCount = rows?.[0]?.count || 0;
+      const [vRows]: any = await connection.query('SELECT VERSION() as v');
+      serverVersion = vRows?.[0]?.v || '';
+      if (serverVersion.includes('TiDB') || (host && host.toLowerCase().includes('tidb'))) {
+        isTiDB = true;
+      }
     } catch {}
+
+    // Check table count
+    let tablesList: string[] = [];
+    try {
+      const [tblRows]: any = await connection.query('SHOW TABLES');
+      tablesList = tblRows.map((r: any) => Object.values(r)[0] as string);
+    } catch {}
+
+    // Check siswa count
+    let siswaCount = 0;
+    const hasSiswaTable = tablesList.includes('siswa');
+    if (hasSiswaTable) {
+      try {
+        const [rows]: any = await connection.query('SELECT COUNT(*) as count FROM `siswa`');
+        siswaCount = rows?.[0]?.count || 0;
+      } catch {}
+    }
 
     await connection.end();
     return res.json({
       success: true,
-      message: `Koneksi ke database MySQL '${database || process.env.MYSQL_DATABASE || 'db_kesiswaan_sekolah'}' BERHASIL! Ditemukan ${siswaCount} data siswa di tabel 'siswa'.`,
+      isTiDB,
+      serverVersion,
+      pingTime,
+      tablesCount: tablesList.length,
+      tablesList,
+      hasSiswaTable,
       siswaCount,
+      database: database || 'db_kesiswaan_sekolah',
+      message: isTiDB
+        ? `Koneksi ke TiDB Cloud Serverless BERHASIL! (Latency: ${pingTime}ms, Engine: ${serverVersion}). Ditemukan ${tablesList.length} tabel.`
+        : `Koneksi ke database '${database || 'db_kesiswaan_sekolah'}' BERHASIL! (Latency: ${pingTime}ms). Ditemukan ${siswaCount} data siswa di tabel 'siswa'.`,
     });
   } catch (err: any) {
     return res.status(200).json({
       success: false,
-      message: `Koneksi MySQL gagal: ${err.message}. Pastikan host, database, user, dan password benar. Jika menggunakan remote hosting, aktifkan 'Remote MySQL' di cPanel.`,
+      message: `Koneksi gagal: ${err.message}. Periksa Host, Port, User, Password, atau izin IP di TiDB Cloud Console.`,
       errorDetail: err.code || err.message,
     });
   }
 });
 
-// Push current application data directly into live MySQL tables
+// Push current application data directly into live MySQL / TiDB Cloud tables
 app.post('/api/mysql/push', async (req, res) => {
   const { config, students, schoolProfile } = req.body;
   try {
     const connection = await getMySQLConnection(config);
+
+    // 0. Ensure tables exist before inserting (essential for brand new TiDB Cloud instances)
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS \`sekolah_profile\` (
+        \`id\` INT PRIMARY KEY,
+        \`nama_sekolah\` VARCHAR(150),
+        \`npsn\` VARCHAR(20),
+        \`nss\` VARCHAR(30),
+        \`alamat\` TEXT,
+        \`desa_kelurahan\` VARCHAR(100),
+        \`kecamatan\` VARCHAR(100),
+        \`kabupaten_kota\` VARCHAR(100),
+        \`provinsi\` VARCHAR(100),
+        \`kode_pos\` VARCHAR(10),
+        \`telepon\` VARCHAR(30),
+        \`email\` VARCHAR(100),
+        \`nama_kepala_sekolah\` VARCHAR(120),
+        \`nip_kepala_sekolah\` VARCHAR(30),
+        \`nama_wali_kelas\` VARCHAR(120),
+        \`nip_wali_kelas\` VARCHAR(30),
+        \`nama_petugas_admin\` VARCHAR(120),
+        \`nip_petugas_admin\` VARCHAR(30),
+        \`tahun_ajaran_aktif\` VARCHAR(20),
+        \`semester_aktif\` VARCHAR(10),
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS \`siswa\` (
+        \`id\` VARCHAR(50) PRIMARY KEY,
+        \`nis\` VARCHAR(30) NOT NULL,
+        \`nisn\` VARCHAR(30) NOT NULL,
+        \`nama_lengkap\` VARCHAR(150) NOT NULL,
+        \`nama_panggilan\` VARCHAR(50),
+        \`jenis_kelamin\` VARCHAR(10) NOT NULL,
+        \`tempat_lahir\` VARCHAR(100),
+        \`tanggal_lahir\` DATE,
+        \`agama\` VARCHAR(50),
+        \`kewarganegaraan\` VARCHAR(50),
+        \`anak_ke\` INT DEFAULT 1,
+        \`jumlah_saudara\` INT DEFAULT 0,
+        \`bahasa_sehari_hari\` VARCHAR(50),
+        \`alamat\` TEXT,
+        \`kelurahan\` VARCHAR(100),
+        \`kecamatan\` VARCHAR(100),
+        \`kabupaten_kota\` VARCHAR(100),
+        \`provinsi\` VARCHAR(100),
+        \`telepon\` VARCHAR(30),
+        \`no_hp\` VARCHAR(30),
+        \`status_siswa\` VARCHAR(30) DEFAULT 'aktif',
+        \`kelas_sekarang\` VARCHAR(20) DEFAULT 'I',
+        \`tanggal_diterima\` DATE,
+        \`diterima_di_kelas\` VARCHAR(20) DEFAULT 'I',
+        \`asal_sekolah\` VARCHAR(120),
+        \`no_ijazah_sebelumnya\` VARCHAR(50),
+        \`ayah_nama\` VARCHAR(120),
+        \`ayah_pendidikan\` VARCHAR(50),
+        \`ayah_pekerjaan\` VARCHAR(100),
+        \`ayah_penghasilan\` VARCHAR(100),
+        \`ayah_hp\` VARCHAR(30),
+        \`ibu_nama\` VARCHAR(120),
+        \`ibu_pendidikan\` VARCHAR(50),
+        \`ibu_pekerjaan\` VARCHAR(100),
+        \`ibu_penghasilan\` VARCHAR(100),
+        \`ibu_hp\` VARCHAR(30),
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
 
     // 1. Update/Insert sekolah_profile
     if (schoolProfile) {
@@ -296,6 +425,37 @@ app.post('/api/mysql/pull', async (req, res) => {
       message: `Berhasil menarik ${studentsData.length} data siswa dari tabel MySQL Live!`,
       students: studentsData,
       schoolProfile: profileData,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Interactive SQL Query Executor for TiDB Cloud / MySQL Console
+app.post('/api/mysql/execute-query', async (req, res) => {
+  const { config, query } = req.body;
+  if (!query || typeof query !== 'string') {
+    return res.status(400).json({ success: false, error: 'Query SQL harus diisi.' });
+  }
+
+  const trimmed = query.trim().toUpperCase();
+  const allowedPrefixes = ['SELECT', 'SHOW', 'DESCRIBE', 'DESC', 'EXPLAIN'];
+  const isAllowed = allowedPrefixes.some(p => trimmed.startsWith(p));
+  if (!isAllowed) {
+    return res.status(400).json({
+      success: false,
+      error: 'Konsol interaktif dibatasi untuk perintah pembacaan (SELECT, SHOW, DESCRIBE, EXPLAIN) demi keamanan data kesiswaan.',
+    });
+  }
+
+  try {
+    const connection = await getMySQLConnection(config);
+    const [rows]: any = await connection.query(query);
+    await connection.end();
+    return res.json({
+      success: true,
+      rows: Array.isArray(rows) ? rows.slice(0, 50) : rows,
+      rowCount: Array.isArray(rows) ? rows.length : 1,
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });

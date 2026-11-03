@@ -133,7 +133,16 @@ interface SchoolContextType {
   importStudentsFromExcel: (imported: Partial<Student>[], mode: 'append' | 'replace') => { added: number; replaced: number };
 
   updateMySQLConfig: (updates: Partial<MySQLConfig>) => void;
-  testMySQLConnection: () => Promise<{ success: boolean; message: string }>;
+  testMySQLConnection: () => Promise<{
+    success: boolean;
+    message: string;
+    isTiDB?: boolean;
+    pingTime?: number;
+    serverVersion?: string;
+    tablesCount?: number;
+    siswaCount?: number;
+    errorDetail?: string;
+  }>;
   getMySQLDumpText: () => string;
   downloadMySQLDump: () => void;
   resetToDefaultData: () => void;
@@ -946,15 +955,23 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const data = await res.json();
       if (data.success) {
         updateMySQLConfig({ isConnected: true, lastSync: new Date().toLocaleTimeString('id-ID') });
-        return { success: true, message: data.message };
+        return {
+          success: true,
+          message: data.message,
+          isTiDB: data.isTiDB,
+          pingTime: data.pingTime,
+          serverVersion: data.serverVersion,
+          tablesCount: data.tablesCount,
+          siswaCount: data.siswaCount,
+        };
       }
       updateMySQLConfig({ isConnected: false });
-      return { success: false, message: data.message };
+      return { success: false, message: data.message, errorDetail: data.errorDetail };
     } catch (err: any) {
       updateMySQLConfig({ isConnected: false });
       return {
         success: false,
-        message: `Tidak dapat menghubungi server MySQL: ${err.message}. Anda tetap dapat mengunduh file dump .sql lengkap untuk dieksekusi di MySQL/phpMyAdmin.`,
+        message: `Tidak dapat menghubungi server MySQL/TiDB: ${err.message}.`,
       };
     }
   };
