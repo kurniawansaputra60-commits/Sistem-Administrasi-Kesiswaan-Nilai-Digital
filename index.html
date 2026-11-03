@@ -79,7 +79,14 @@
         window.addEventListener('unhandledrejection', function(event) {
           if (event && event.reason) {
             var reasonMsg = String(event.reason.message || event.reason || '').toLowerCase();
-            if (reasonMsg.indexOf('websocket') !== -1 || reasonMsg.indexOf('terhubung') !== -1 || reasonMsg.indexOf('failed to connect') !== -1) {
+            if (
+              reasonMsg.indexOf('websocket') !== -1 ||
+              reasonMsg.indexOf('without opened') !== -1 ||
+              reasonMsg.indexOf('closed without opened') !== -1 ||
+              reasonMsg.indexOf('failed to connect') !== -1 ||
+              reasonMsg.indexOf('terhubung') !== -1 ||
+              reasonMsg.indexOf('@vite/client') !== -1
+            ) {
               event.preventDefault();
               event.stopImmediatePropagation();
             }
@@ -88,7 +95,14 @@
         window.addEventListener('error', function(event) {
           if (event && (event.message || event.filename)) {
             var errMsg = String(event.message || '').toLowerCase();
-            if (errMsg.indexOf('websocket') !== -1 || errMsg.indexOf('terhubung') !== -1 || errMsg.indexOf('failed to connect') !== -1) {
+            if (
+              errMsg.indexOf('websocket') !== -1 ||
+              errMsg.indexOf('without opened') !== -1 ||
+              errMsg.indexOf('closed without opened') !== -1 ||
+              errMsg.indexOf('failed to connect') !== -1 ||
+              errMsg.indexOf('terhubung') !== -1 ||
+              errMsg.indexOf('@vite/client') !== -1
+            ) {
               event.preventDefault();
               event.stopImmediatePropagation();
             }

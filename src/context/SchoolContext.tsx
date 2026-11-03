@@ -208,6 +208,118 @@ const readTimestamp = (value: any): number => {
   return Number.isNaN(d.getTime()) ? 0 : d.getTime();
 };
 
+const normalizeStudent = (s: any): Student => {
+  if (!s || typeof s !== 'object') {
+    return {
+      id: `stu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      nis: '',
+      nisn: '',
+      namaLengkap: 'Tanpa Nama',
+      namaPanggilan: '',
+      jenisKelamin: 'L',
+      tempatLahir: '',
+      tanggalLahir: '',
+      agama: 'Islam',
+      kewarganegaraan: 'Indonesia',
+      anakKe: 1,
+      jumlahSaudara: 0,
+      bahasaSehariHari: 'Indonesia',
+      alamat: '',
+      kelurahan: '',
+      kecamatan: '',
+      kabupatenKota: '',
+      provinsi: 'Banten',
+      statusSiswa: 'aktif',
+      kelasSekarang: 'I',
+      rombel: 'A',
+      tanggalDiterima: '',
+      diterimaDiKelas: 'I',
+      asalSekolah: '',
+      dataAyah: {
+        nama: '',
+        pendidikan: '',
+        pekerjaan: '',
+        penghasilan: '',
+        noHp: '',
+      },
+      dataIbu: {
+        nama: '',
+        pendidikan: '',
+        pekerjaan: '',
+        penghasilan: '',
+        noHp: '',
+      },
+      nilaiSemester: {},
+    };
+  }
+
+  const dataAyah = {
+    nama: s.dataAyah?.nama || s.ayahNama || s.namaAyah || '',
+    tahunLahir: s.dataAyah?.tahunLahir || s.ayahTahunLahir || '',
+    pendidikan: s.dataAyah?.pendidikan || s.ayahPendidikan || '',
+    pekerjaan: s.dataAyah?.pekerjaan || s.ayahPekerjaan || '',
+    penghasilan: s.dataAyah?.penghasilan || s.ayahPenghasilan || '',
+    noHp: s.dataAyah?.noHp || s.ayahNoHp || s.ayahHp || '',
+  };
+
+  const dataIbu = {
+    nama: s.dataIbu?.nama || s.ibuNama || s.namaIbu || '',
+    tahunLahir: s.dataIbu?.tahunLahir || s.ibuTahunLahir || '',
+    pendidikan: s.dataIbu?.pendidikan || s.ibuPendidikan || '',
+    pekerjaan: s.dataIbu?.pekerjaan || s.ibuPekerjaan || '',
+    penghasilan: s.dataIbu?.penghasilan || s.ibuPenghasilan || '',
+    noHp: s.dataIbu?.noHp || s.ibuNoHp || s.ibuHp || '',
+  };
+
+  const dataWali = s.dataWali ? {
+    nama: s.dataWali.nama || '',
+    tahunLahir: s.dataWali.tahunLahir || '',
+    pendidikan: s.dataWali.pendidikan || '',
+    pekerjaan: s.dataWali.pekerjaan || '',
+    penghasilan: s.dataWali.penghasilan || '',
+    noHp: s.dataWali.noHp || '',
+    hubungan: s.dataWali.hubungan || '',
+  } : undefined;
+
+  return {
+    id: s.id || `stu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    nis: s.nis || '',
+    nisn: s.nisn || '',
+    namaLengkap: s.namaLengkap || 'Tanpa Nama',
+    namaPanggilan: s.namaPanggilan || '',
+    jenisKelamin: s.jenisKelamin === 'P' ? 'P' : 'L',
+    tempatLahir: s.tempatLahir || '',
+    tanggalLahir: s.tanggalLahir || '',
+    agama: s.agama || 'Islam',
+    kewarganegaraan: s.kewarganegaraan || 'Indonesia',
+    anakKe: typeof s.anakKe === 'number' ? s.anakKe : parseInt(s.anakKe, 10) || 1,
+    jumlahSaudara: typeof s.jumlahSaudara === 'number' ? s.jumlahSaudara : parseInt(s.jumlahSaudara, 10) || 0,
+    bahasaSehariHari: s.bahasaSehariHari || 'Indonesia',
+    alamat: s.alamat || '',
+    kelurahan: s.kelurahan || '',
+    kecamatan: s.kecamatan || '',
+    kabupatenKota: s.kabupatenKota || '',
+    provinsi: s.provinsi || 'Banten',
+    telepon: s.telepon || '',
+    noHp: s.noHp || '',
+    statusSiswa: s.statusSiswa || 'aktif',
+    kelasSekarang: s.kelasSekarang || 'I',
+    rombel: s.rombel || 'A',
+    tanggalDiterima: s.tanggalDiterima || '',
+    diterimaDiKelas: s.diterimaDiKelas || 'I',
+    asalSekolah: s.asalSekolah || '',
+    noIjazahSebelumnya: s.noIjazahSebelumnya || '',
+    tahunIjazah: s.tahunIjazah || '',
+    fotoUrl: s.fotoUrl || '',
+    keterangan: s.keterangan || '',
+    dataAyah,
+    dataIbu,
+    dataWali,
+    nilaiSemester: s.nilaiSemester && typeof s.nilaiSemester === 'object' ? s.nilaiSemester : {},
+    riwayatKenaikan: s.riwayatKenaikan,
+  };
+};
+
 const applyRemoteSnapshot = (data: any, setters: {
   setSchoolProfile: React.Dispatch<React.SetStateAction<SchoolProfile>>;
   setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
@@ -239,7 +351,10 @@ const applyRemoteSnapshot = (data: any, setters: {
       updatedAt: data.schoolProfile.updatedAt || data.updatedAt || prev.updatedAt,
     }));
   }
-  if (Array.isArray(data.students)) setters.setStudents(data.students);
+  if (Array.isArray(data.students)) {
+    const clean = data.students.map(normalizeStudent);
+    setters.setStudents(clean);
+  }
   if (Array.isArray(data.attendances)) setters.setAttendances(data.attendances);
   if (Array.isArray(data.warningLetters)) setters.setWarningLetters(data.warningLetters);
   if (Array.isArray(data.transferRequests)) setters.setTransferRequests(data.transferRequests);
@@ -255,7 +370,7 @@ const applyRemoteSnapshot = (data: any, setters: {
 
   try {
     if (data.schoolProfile) safeWrite(STORAGE_KEYS.PROFILE, data.schoolProfile);
-    if (Array.isArray(data.students)) safeWrite(STORAGE_KEYS.STUDENTS, data.students);
+    if (Array.isArray(data.students)) safeWrite(STORAGE_KEYS.STUDENTS, data.students.map(normalizeStudent));
     if (Array.isArray(data.attendances)) safeWrite(STORAGE_KEYS.ATTENDANCE, data.attendances);
     if (Array.isArray(data.warningLetters)) safeWrite(STORAGE_KEYS.WARNING_LETTERS, data.warningLetters);
     if (Array.isArray(data.transferRequests)) safeWrite(STORAGE_KEYS.TRANSFER_REQ, data.transferRequests);
@@ -304,7 +419,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
-  const [students, setStudents] = useState<Student[]>(() => safeRead(STORAGE_KEYS.STUDENTS, initialStudents));
+  const [students, setStudents] = useState<Student[]>(() => {
+    const raw = safeRead<any[]>(STORAGE_KEYS.STUDENTS, initialStudents);
+    return Array.isArray(raw) ? raw.map(normalizeStudent) : initialStudents;
+  });
   const [attendances, setAttendances] = useState<DailyAttendanceRecord[]>(() => safeRead(STORAGE_KEYS.ATTENDANCE, initialDailyAttendance));
   const [warningLetters, setWarningLetters] = useState<AbsenceWarningLetter[]>(() => safeRead(STORAGE_KEYS.WARNING_LETTERS, initialWarningLetters));
   const [transferRequests, setTransferRequests] = useState<TransferRequestLetter[]>(() => safeRead(STORAGE_KEYS.TRANSFER_REQ, initialTransferRequests));
@@ -690,7 +808,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addStudent = (studentData: Omit<Student, 'id'>): string => {
     const newId = `stu-${Date.now()}`;
-    const newStudent: Student = {
+    const rawStudent = {
       ...studentData,
       id: newId,
       nilaiSemester: studentData.nilaiSemester || {
@@ -698,12 +816,13 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         '2025/2026-2': generateGrades(students.length + 1),
       },
     };
+    const newStudent = normalizeStudent(rawStudent);
     setStudents((prev) => [newStudent, ...prev]);
     return newId;
   };
 
   const updateStudent = (id: string, updates: Partial<Student>) => {
-    setStudents((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
+    setStudents((prev) => prev.map((s) => (s.id === id ? normalizeStudent({ ...s, ...updates }) : s)));
   };
 
   const deleteStudent = (id: string) => {
@@ -1050,7 +1169,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const data = JSON.parse(jsonStr);
       if (data.schoolProfile) setSchoolProfile(data.schoolProfile);
-      if (Array.isArray(data.students)) setStudents(data.students);
+      if (Array.isArray(data.students)) setStudents(data.students.map(normalizeStudent));
       if (Array.isArray(data.attendances)) setAttendances(data.attendances);
       if (Array.isArray(data.warningLetters)) setWarningLetters(data.warningLetters);
       if (Array.isArray(data.transferRequests)) setTransferRequests(data.transferRequests);
