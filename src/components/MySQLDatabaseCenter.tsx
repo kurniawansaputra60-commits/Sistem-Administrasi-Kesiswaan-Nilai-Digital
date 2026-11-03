@@ -158,7 +158,14 @@ export const MySQLDatabaseCenter: React.FC = () => {
       try {
         data = JSON.parse(rawText);
       } catch {
-        setActionMsg({ type: 'error', text: `Server sedang merespons (${res.status}). Silakan ulangi dalam beberapa detik.` });
+        if (res.status === 404) {
+          setActionMsg({
+            type: 'error',
+            text: 'Endpoint API (/api/mysql/push) mengembalikan 404 Not Found. Pada hosting statis Vercel, silakan unduh file .SQL Dump menggunakan tombol di atas lalu import langsung ke TiDB Cloud Console.'
+          });
+        } else {
+          setActionMsg({ type: 'error', text: `Server merespons status HTTP ${res.status}. Silakan ulangi dalam beberapa saat.` });
+        }
         return;
       }
       if (data.success) {
@@ -190,7 +197,14 @@ export const MySQLDatabaseCenter: React.FC = () => {
       try {
         data = JSON.parse(rawText);
       } catch {
-        setActionMsg({ type: 'error', text: `Server sedang merespons (${res.status}). Silakan ulangi dalam beberapa detik.` });
+        if (res.status === 404) {
+          setActionMsg({
+            type: 'error',
+            text: 'Endpoint API (/api/mysql/pull) mengembalikan 404 Not Found pada hosting statis Vercel. Untuk sinkronisasi data antar perangkat pada Vercel, aplikasi menggunakan Firebase Cloud & LocalStorage secara otomatis.'
+          });
+        } else {
+          setActionMsg({ type: 'error', text: `Server merespons status HTTP ${res.status}. Silakan ulangi dalam beberapa saat.` });
+        }
         return;
       }
       if (data.success) {

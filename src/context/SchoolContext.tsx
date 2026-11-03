@@ -1155,23 +1155,45 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const testMySQLConnection = async () => {
     const doFetch = async () => {
-      const res = await fetch('/api/mysql/test-connection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mysqlConfig),
-      });
-      const rawText = await res.text();
-      let data: any = null;
       try {
-        data = JSON.parse(rawText);
-      } catch {}
-      return { res, data, rawText };
+        const res = await fetch('/api/mysql/test-connection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(mysqlConfig),
+        });
+        const rawText = await res.text();
+        let data: any = null;
+        try {
+          data = JSON.parse(rawText);
+        } catch {}
+        return { res, data, rawText };
+      } catch (err: any) {
+        return { res: null, data: null, rawText: '', fetchErr: err?.message };
+      }
     };
 
     try {
-      let { res, data } = await doFetch();
+      let { res, data, fetchErr } = await doFetch();
 
-      // If backend was warming up (e.g. non-JSON during start), auto-retry once after 1s!
+      if (fetchErr) {
+        updateMySQLConfig({ isConnected: false });
+        return {
+          success: false,
+          message: `Tidak dapat menghubungi jaringan server: ${fetchErr}.`,
+          errorDetail: 'FETCH_ERROR',
+        };
+      }
+
+      if (res && res.status === 404) {
+        updateMySQLConfig({ isConnected: false });
+        return {
+          success: false,
+          message: `Hosting Statis Vercel Terdeteksi: Endpoint server Express (/api/mysql) mengembalikan status 404. Pada deployment statis (Vercel Frontend), proses Node.js Express server.ts tidak berjalan secara otomatis.`,
+          errorDetail: 'VERCEL_STATIC_HOST_404',
+        };
+      }
+
+      // If backend was warming up (e.g. non-JSON 503 or HTML response during local container start), retry once after 1.2s
       if (!data) {
         await new Promise((resolve) => setTimeout(resolve, 1200));
         const retry = await doFetch();
@@ -1179,12 +1201,21 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         data = retry.data;
       }
 
+      if (res && res.status === 404) {
+        updateMySQLConfig({ isConnected: false });
+        return {
+          success: false,
+          message: `Hosting Statis Vercel Terdeteksi: Endpoint server Express (/api/mysql) mengembalikan status 404. Pada deployment statis (Vercel Frontend), proses Node.js Express server.ts tidak berjalan secara otomatis.`,
+          errorDetail: 'VERCEL_STATIC_HOST_404',
+        };
+      }
+
       if (!data) {
         updateMySQLConfig({ isConnected: false });
         return {
           success: false,
-          message: `Layanan server backend sedang bersiap (${res.status || '503'}). Silakan klik tombol "Uji Koneksi" sekali lagi.`,
-          errorDetail: 'BACKEND_WARMING_UP',
+          message: `Layanan server backend sedang tidak merespons (${res?.status || '503'}). Silakan periksa kembali status server Node.js.`,
+          errorDetail: 'BACKEND_NOT_RESPONDING',
         };
       }
 
