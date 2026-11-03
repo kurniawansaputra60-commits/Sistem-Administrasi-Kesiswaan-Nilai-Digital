@@ -805,8 +805,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                     setRombelExportMsg(`Berhasil mengekspor Data Siswa Kelas ${teacherKelas} ${teacherRombel} ke file Excel (.xlsx).`);
                     setTimeout(() => setRombelExportMsg(null), 5000);
                   } catch (e: any) {
-                    setRombelExportMsg(`Gagal mengekspor: ${e?.message || 'Terjadi kesalahan sistem'}`);
-                    setTimeout(() => setRombelExportMsg(null), 5000);
+                    alert(`Gagal mengekspor: ${e.message}`);
                   }
                 }}
                 className="w-full py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
@@ -843,8 +842,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                     setRombelExportMsg(`Berhasil mengekspor Rekap Presensi Kelas ${teacherKelas} ${teacherRombel} ke file Excel (.xlsx).`);
                     setTimeout(() => setRombelExportMsg(null), 5000);
                   } catch (e: any) {
-                    setRombelExportMsg(`Gagal mengekspor presensi: ${e?.message || 'Terjadi kesalahan sistem'}`);
-                    setTimeout(() => setRombelExportMsg(null), 5000);
+                    alert(`Gagal mengekspor presensi: ${e.message}`);
                   }
                 }}
                 className="w-full py-2 px-3 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
@@ -880,8 +878,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                     setRombelExportMsg(`Berhasil mengekspor Template Nilai Kelas ${teacherKelas} ${teacherRombel} ke file Excel (.xlsx).`);
                     setTimeout(() => setRombelExportMsg(null), 5000);
                   } catch (e: any) {
-                    setRombelExportMsg(`Gagal mengekspor template nilai: ${e?.message || 'Terjadi kesalahan sistem'}`);
-                    setTimeout(() => setRombelExportMsg(null), 5000);
+                    alert(`Gagal mengekspor template nilai: ${e.message}`);
                   }
                 }}
                 className="w-full py-2 px-3 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
@@ -925,8 +922,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenAddStude
                       setRombelExportMsg(`Berhasil mengekspor Data Siswa Kelas ${teacherKelas} ${teacherRombel} ke file CSV.`);
                       setTimeout(() => setRombelExportMsg(null), 5000);
                     } catch (e: any) {
-                      setRombelExportMsg(`Gagal mengekspor CSV: ${e?.message || 'Terjadi kesalahan sistem'}`);
-                      setTimeout(() => setRombelExportMsg(null), 5000);
+                      alert(`Gagal mengekspor CSV: ${e.message}`);
                     }
                   }}
                   className="py-2 px-2.5 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-[11px] rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-2xs"

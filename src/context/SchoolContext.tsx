@@ -51,44 +51,15 @@ enum OperationType {
   WRITE = 'write',
 }
 
-let isFirestoreQuotaExceeded = false;
-let quotaExceededResumeTime = 0;
-
-const markFirestoreQuotaExceeded = (durationMs = 15 * 60 * 1000) => {
-  isFirestoreQuotaExceeded = true;
-  quotaExceededResumeTime = Date.now() + durationMs;
-};
-
-const canAttemptFirestoreWrite = () => {
-  if (!isFirestoreQuotaExceeded) return true;
-  if (Date.now() > quotaExceededResumeTime) {
-    isFirestoreQuotaExceeded = false;
-    return true;
-  }
-  return false;
-};
-
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errMsg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  const errMsg = error instanceof Error ? error.message : String(error);
   if (
     errMsg.includes('quota') ||
-    errMsg.includes('batas kuota') ||
+    errMsg.includes('Batas kuota') ||
     errMsg.includes('resource-exhausted') ||
     errMsg.includes('offline') ||
-    errMsg.includes('failed-precondition') ||
-    errMsg.includes('timeout') ||
-    errMsg.includes('unavailable') ||
-    errMsg.includes('backoff') ||
-    errMsg.includes('cancelled')
+    errMsg.includes('failed-precondition')
   ) {
-    if (
-      errMsg.includes('quota') ||
-      errMsg.includes('resource-exhausted') ||
-      errMsg.includes('timeout') ||
-      errMsg.includes('unavailable')
-    ) {
-      markFirestoreQuotaExceeded();
-    }
     // Graceful offline and quota fallback without noise
     return;
   }
@@ -162,16 +133,7 @@ interface SchoolContextType {
   importStudentsFromExcel: (imported: Partial<Student>[], mode: 'append' | 'replace') => { added: number; replaced: number };
 
   updateMySQLConfig: (updates: Partial<MySQLConfig>) => void;
-  testMySQLConnection: () => Promise<{
-    success: boolean;
-    message: string;
-    isTiDB?: boolean;
-    pingTime?: number;
-    serverVersion?: string;
-    tablesCount?: number;
-    siswaCount?: number;
-    errorDetail?: string;
-  }>;
+  testMySQLConnection: () => Promise<{ success: boolean; message: string }>;
   getMySQLDumpText: () => string;
   downloadMySQLDump: () => void;
   resetToDefaultData: () => void;
@@ -237,118 +199,6 @@ const readTimestamp = (value: any): number => {
   return Number.isNaN(d.getTime()) ? 0 : d.getTime();
 };
 
-const normalizeStudent = (s: any): Student => {
-  if (!s || typeof s !== 'object') {
-    return {
-      id: `stu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      nis: '',
-      nisn: '',
-      namaLengkap: 'Tanpa Nama',
-      namaPanggilan: '',
-      jenisKelamin: 'L',
-      tempatLahir: '',
-      tanggalLahir: '',
-      agama: 'Islam',
-      kewarganegaraan: 'Indonesia',
-      anakKe: 1,
-      jumlahSaudara: 0,
-      bahasaSehariHari: 'Indonesia',
-      alamat: '',
-      kelurahan: '',
-      kecamatan: '',
-      kabupatenKota: '',
-      provinsi: 'Banten',
-      statusSiswa: 'aktif',
-      kelasSekarang: 'I',
-      rombel: 'A',
-      tanggalDiterima: '',
-      diterimaDiKelas: 'I',
-      asalSekolah: '',
-      dataAyah: {
-        nama: '',
-        pendidikan: '',
-        pekerjaan: '',
-        penghasilan: '',
-        noHp: '',
-      },
-      dataIbu: {
-        nama: '',
-        pendidikan: '',
-        pekerjaan: '',
-        penghasilan: '',
-        noHp: '',
-      },
-      nilaiSemester: {},
-    };
-  }
-
-  const dataAyah = {
-    nama: s.dataAyah?.nama || s.ayahNama || s.namaAyah || '',
-    tahunLahir: s.dataAyah?.tahunLahir || s.ayahTahunLahir || '',
-    pendidikan: s.dataAyah?.pendidikan || s.ayahPendidikan || '',
-    pekerjaan: s.dataAyah?.pekerjaan || s.ayahPekerjaan || '',
-    penghasilan: s.dataAyah?.penghasilan || s.ayahPenghasilan || '',
-    noHp: s.dataAyah?.noHp || s.ayahNoHp || s.ayahHp || '',
-  };
-
-  const dataIbu = {
-    nama: s.dataIbu?.nama || s.ibuNama || s.namaIbu || '',
-    tahunLahir: s.dataIbu?.tahunLahir || s.ibuTahunLahir || '',
-    pendidikan: s.dataIbu?.pendidikan || s.ibuPendidikan || '',
-    pekerjaan: s.dataIbu?.pekerjaan || s.ibuPekerjaan || '',
-    penghasilan: s.dataIbu?.penghasilan || s.ibuPenghasilan || '',
-    noHp: s.dataIbu?.noHp || s.ibuNoHp || s.ibuHp || '',
-  };
-
-  const dataWali = s.dataWali ? {
-    nama: s.dataWali.nama || '',
-    tahunLahir: s.dataWali.tahunLahir || '',
-    pendidikan: s.dataWali.pendidikan || '',
-    pekerjaan: s.dataWali.pekerjaan || '',
-    penghasilan: s.dataWali.penghasilan || '',
-    noHp: s.dataWali.noHp || '',
-    hubungan: s.dataWali.hubungan || '',
-  } : undefined;
-
-  return {
-    id: s.id || `stu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-    nis: s.nis || '',
-    nisn: s.nisn || '',
-    namaLengkap: s.namaLengkap || 'Tanpa Nama',
-    namaPanggilan: s.namaPanggilan || '',
-    jenisKelamin: s.jenisKelamin === 'P' ? 'P' : 'L',
-    tempatLahir: s.tempatLahir || '',
-    tanggalLahir: s.tanggalLahir || '',
-    agama: s.agama || 'Islam',
-    kewarganegaraan: s.kewarganegaraan || 'Indonesia',
-    anakKe: typeof s.anakKe === 'number' ? s.anakKe : parseInt(s.anakKe, 10) || 1,
-    jumlahSaudara: typeof s.jumlahSaudara === 'number' ? s.jumlahSaudara : parseInt(s.jumlahSaudara, 10) || 0,
-    bahasaSehariHari: s.bahasaSehariHari || 'Indonesia',
-    alamat: s.alamat || '',
-    kelurahan: s.kelurahan || '',
-    kecamatan: s.kecamatan || '',
-    kabupatenKota: s.kabupatenKota || '',
-    provinsi: s.provinsi || 'Banten',
-    telepon: s.telepon || '',
-    noHp: s.noHp || '',
-    statusSiswa: s.statusSiswa || 'aktif',
-    kelasSekarang: s.kelasSekarang || 'I',
-    rombel: s.rombel || 'A',
-    tanggalDiterima: s.tanggalDiterima || '',
-    diterimaDiKelas: s.diterimaDiKelas || 'I',
-    asalSekolah: s.asalSekolah || '',
-    noIjazahSebelumnya: s.noIjazahSebelumnya || '',
-    tahunIjazah: s.tahunIjazah || '',
-    fotoUrl: s.fotoUrl || '',
-    keterangan: s.keterangan || '',
-    dataAyah,
-    dataIbu,
-    dataWali,
-    nilaiSemester: s.nilaiSemester && typeof s.nilaiSemester === 'object' ? s.nilaiSemester : {},
-    riwayatKenaikan: s.riwayatKenaikan,
-  };
-};
-
 const applyRemoteSnapshot = (data: any, setters: {
   setSchoolProfile: React.Dispatch<React.SetStateAction<SchoolProfile>>;
   setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
@@ -380,10 +230,7 @@ const applyRemoteSnapshot = (data: any, setters: {
       updatedAt: data.schoolProfile.updatedAt || data.updatedAt || prev.updatedAt,
     }));
   }
-  if (Array.isArray(data.students)) {
-    const clean = data.students.map(normalizeStudent);
-    setters.setStudents(clean);
-  }
+  if (Array.isArray(data.students)) setters.setStudents(data.students);
   if (Array.isArray(data.attendances)) setters.setAttendances(data.attendances);
   if (Array.isArray(data.warningLetters)) setters.setWarningLetters(data.warningLetters);
   if (Array.isArray(data.transferRequests)) setters.setTransferRequests(data.transferRequests);
@@ -399,7 +246,7 @@ const applyRemoteSnapshot = (data: any, setters: {
 
   try {
     if (data.schoolProfile) safeWrite(STORAGE_KEYS.PROFILE, data.schoolProfile);
-    if (Array.isArray(data.students)) safeWrite(STORAGE_KEYS.STUDENTS, data.students.map(normalizeStudent));
+    if (Array.isArray(data.students)) safeWrite(STORAGE_KEYS.STUDENTS, data.students);
     if (Array.isArray(data.attendances)) safeWrite(STORAGE_KEYS.ATTENDANCE, data.attendances);
     if (Array.isArray(data.warningLetters)) safeWrite(STORAGE_KEYS.WARNING_LETTERS, data.warningLetters);
     if (Array.isArray(data.transferRequests)) safeWrite(STORAGE_KEYS.TRANSFER_REQ, data.transferRequests);
@@ -448,10 +295,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
-  const [students, setStudents] = useState<Student[]>(() => {
-    const raw = safeRead<any[]>(STORAGE_KEYS.STUDENTS, initialStudents);
-    return Array.isArray(raw) ? raw.map(normalizeStudent) : initialStudents;
-  });
+  const [students, setStudents] = useState<Student[]>(() => safeRead(STORAGE_KEYS.STUDENTS, initialStudents));
   const [attendances, setAttendances] = useState<DailyAttendanceRecord[]>(() => safeRead(STORAGE_KEYS.ATTENDANCE, initialDailyAttendance));
   const [warningLetters, setWarningLetters] = useState<AbsenceWarningLetter[]>(() => safeRead(STORAGE_KEYS.WARNING_LETTERS, initialWarningLetters));
   const [transferRequests, setTransferRequests] = useState<TransferRequestLetter[]>(() => safeRead(STORAGE_KEYS.TRANSFER_REQ, initialTransferRequests));
@@ -598,57 +442,13 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       },
       (err) => {
         handleFirestoreError(err, OperationType.GET, 'school_data/main');
-        markFirestoreQuotaExceeded();
+        // Graceful fallback: local and server data remain active
         setCloudSyncStatus('synced');
         isCloudLoadedRef.current = true;
       }
     );
 
     return () => unsub();
-  }, []);
-
-  // 3. Periodic background poll to Express server for instant multi-device sync
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (document.hidden || isRemoteUpdateRef.current) return;
-      if (Date.now() - lastLocalWriteAtRef.current < 4000) return;
-
-      fetch('/api/data')
-        .then((res) => (res.ok ? res.json() : null))
-        .then((res) => {
-          if (res?.success && res.data) {
-            const remoteUpdatedAt = readTimestamp(res.data?.updatedAt);
-            const localUpdatedAt = readTimestamp(safeRead<Record<string, any>>(STORAGE_KEYS.PROFILE, {}).updatedAt);
-            if (remoteUpdatedAt > localUpdatedAt) {
-              isRemoteUpdateRef.current = true;
-              applyRemoteSnapshot(res.data, {
-                setSchoolProfile,
-                setStudents,
-                setAttendances,
-                setWarningLetters,
-                setTransferRequests,
-                setTransferOuts,
-                setTransferIns,
-                setMutations,
-                setExamCandidates,
-                setExamSessions,
-                setExamScores,
-                setGradStudies,
-                setAchievements,
-                setCurriculumTargets,
-              });
-              setCloudSyncStatus('synced');
-              setLastSyncedAt(new Date());
-              setTimeout(() => {
-                isRemoteUpdateRef.current = false;
-              }, 150);
-            }
-          }
-        })
-        .catch(() => {});
-    }, 8000);
-
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -712,17 +512,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setCloudSyncStatus('synced');
       setLastSyncedAt(new Date());
 
-      // 3. Sync to Firebase Firestore in background with timeout protection ONLY IF quota not exceeded
-      if (canAttemptFirestoreWrite()) {
-        const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true })
-          .catch((err) => {
-            handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
-          });
-        const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
-        Promise.race([firestoreTask, timeoutTask]).catch((err) => {
-          handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
-        });
-      }
+      // 3. Sync to Firebase Firestore in background with timeout protection
+      const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
+      const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
+      Promise.race([firestoreTask, timeoutTask]).catch((err) => {
+        handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+      });
     }, 600);
 
     return () => {
@@ -784,17 +579,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setCloudSyncStatus('synced');
       setLastSyncedAt(new Date());
 
-      // 3. Background sync to Firestore with timeout protection (no UI freezing) ONLY IF quota not exceeded
-      if (canAttemptFirestoreWrite()) {
-        const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true })
-          .catch((err) => {
-            handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
-          });
-        const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
-        Promise.race([firestoreTask, timeoutTask]).catch((err) => {
-          handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
-        });
-      }
+      // 3. Background sync to Firestore with timeout protection (no UI freezing)
+      const firestoreTask = setDoc(doc(db, 'school_data', 'main'), payload, { merge: true });
+      const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500));
+      Promise.race([firestoreTask, timeoutTask]).catch((err) => {
+        handleFirestoreError(err, OperationType.WRITE, 'school_data/main');
+      });
 
       return true;
     } catch (err) {
@@ -807,7 +597,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       setCloudSyncStatus('syncing');
       try {
-        const res = await fetch('/api/data');
+        const res = await fetch('/api/school-data');
         if (res.ok) {
           const json = await res.json();
           if (json.success && json.data) {
@@ -840,38 +630,32 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Continue to Firestore fallback
       }
 
-      if (canAttemptFirestoreWrite()) {
-        try {
-          const snap = await getDoc(doc(db, 'school_data', 'main'));
-          if (snap.exists()) {
-            const data = snap.data() as Record<string, any>;
-            isRemoteUpdateRef.current = true;
-            applyRemoteSnapshot(data, {
-              setSchoolProfile,
-              setStudents,
-              setAttendances,
-              setWarningLetters,
-              setTransferRequests,
-              setTransferOuts,
-              setTransferIns,
-              setMutations,
-              setExamCandidates,
-              setExamSessions,
-              setExamScores,
-              setGradStudies,
-              setAchievements,
-              setCurriculumTargets,
-            });
-            setCloudSyncStatus('synced');
-            setLastSyncedAt(new Date());
-            setTimeout(() => {
-              isRemoteUpdateRef.current = false;
-            }, 150);
-            return true;
-          }
-        } catch (err) {
-          handleFirestoreError(err, OperationType.GET, 'school_data/main');
-        }
+      const snap = await getDoc(doc(db, 'school_data', 'main'));
+      if (snap.exists()) {
+        const data = snap.data() as Record<string, any>;
+        isRemoteUpdateRef.current = true;
+        applyRemoteSnapshot(data, {
+          setSchoolProfile,
+          setStudents,
+          setAttendances,
+          setWarningLetters,
+          setTransferRequests,
+          setTransferOuts,
+          setTransferIns,
+          setMutations,
+          setExamCandidates,
+          setExamSessions,
+          setExamScores,
+          setGradStudies,
+          setAchievements,
+          setCurriculumTargets,
+        });
+        setCloudSyncStatus('synced');
+        setLastSyncedAt(new Date());
+        setTimeout(() => {
+          isRemoteUpdateRef.current = false;
+        }, 150);
+        return true;
       }
       setCloudSyncStatus('synced');
       return true;
@@ -897,7 +681,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addStudent = (studentData: Omit<Student, 'id'>): string => {
     const newId = `stu-${Date.now()}`;
-    const rawStudent = {
+    const newStudent: Student = {
       ...studentData,
       id: newId,
       nilaiSemester: studentData.nilaiSemester || {
@@ -905,13 +689,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         '2025/2026-2': generateGrades(students.length + 1),
       },
     };
-    const newStudent = normalizeStudent(rawStudent);
     setStudents((prev) => [newStudent, ...prev]);
     return newId;
   };
 
   const updateStudent = (id: string, updates: Partial<Student>) => {
-    setStudents((prev) => prev.map((s) => (s.id === id ? normalizeStudent({ ...s, ...updates }) : s)));
+    setStudents((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
   };
 
   const deleteStudent = (id: string) => {
@@ -1154,90 +937,24 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const testMySQLConnection = async () => {
-    const doFetch = async () => {
-      try {
-        const res = await fetch('/api/mysql/test-connection', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(mysqlConfig),
-        });
-        const rawText = await res.text();
-        let data: any = null;
-        try {
-          data = JSON.parse(rawText);
-        } catch {}
-        return { res, data, rawText };
-      } catch (err: any) {
-        return { res: null, data: null, rawText: '', fetchErr: err?.message };
-      }
-    };
-
     try {
-      let { res, data, fetchErr } = await doFetch();
-
-      if (fetchErr) {
-        updateMySQLConfig({ isConnected: false });
-        return {
-          success: false,
-          message: `Tidak dapat menghubungi jaringan server: ${fetchErr}.`,
-          errorDetail: 'FETCH_ERROR',
-        };
-      }
-
-      if (res && res.status === 404) {
-        updateMySQLConfig({ isConnected: false });
-        return {
-          success: false,
-          message: `Hosting Statis Vercel Terdeteksi: Endpoint server Express (/api/mysql) mengembalikan status 404. Pada deployment statis (Vercel Frontend), proses Node.js Express server.ts tidak berjalan secara otomatis.`,
-          errorDetail: 'VERCEL_STATIC_HOST_404',
-        };
-      }
-
-      // If backend was warming up (e.g. non-JSON 503 or HTML response during local container start), retry once after 1.2s
-      if (!data) {
-        await new Promise((resolve) => setTimeout(resolve, 1200));
-        const retry = await doFetch();
-        res = retry.res;
-        data = retry.data;
-      }
-
-      if (res && res.status === 404) {
-        updateMySQLConfig({ isConnected: false });
-        return {
-          success: false,
-          message: `Hosting Statis Vercel Terdeteksi: Endpoint server Express (/api/mysql) mengembalikan status 404. Pada deployment statis (Vercel Frontend), proses Node.js Express server.ts tidak berjalan secara otomatis.`,
-          errorDetail: 'VERCEL_STATIC_HOST_404',
-        };
-      }
-
-      if (!data) {
-        updateMySQLConfig({ isConnected: false });
-        return {
-          success: false,
-          message: `Layanan server backend sedang tidak merespons (${res?.status || '503'}). Silakan periksa kembali status server Node.js.`,
-          errorDetail: 'BACKEND_NOT_RESPONDING',
-        };
-      }
-
+      const res = await fetch('/api/mysql/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mysqlConfig),
+      });
+      const data = await res.json();
       if (data.success) {
         updateMySQLConfig({ isConnected: true, lastSync: new Date().toLocaleTimeString('id-ID') });
-        return {
-          success: true,
-          message: data.message,
-          isTiDB: data.isTiDB,
-          pingTime: data.pingTime,
-          serverVersion: data.serverVersion,
-          tablesCount: data.tablesCount,
-          siswaCount: data.siswaCount,
-        };
+        return { success: true, message: data.message };
       }
       updateMySQLConfig({ isConnected: false });
-      return { success: false, message: data.message, errorDetail: data.errorDetail };
+      return { success: false, message: data.message };
     } catch (err: any) {
       updateMySQLConfig({ isConnected: false });
       return {
         success: false,
-        message: `Tidak dapat menghubungi server: ${err.message}. Pastikan koneksi internet aktif.`,
+        message: `Tidak dapat menghubungi server MySQL: ${err.message}. Anda tetap dapat mengunduh file dump .sql lengkap untuk dieksekusi di MySQL/phpMyAdmin.`,
       };
     }
   };
@@ -1316,7 +1033,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const data = JSON.parse(jsonStr);
       if (data.schoolProfile) setSchoolProfile(data.schoolProfile);
-      if (Array.isArray(data.students)) setStudents(data.students.map(normalizeStudent));
+      if (Array.isArray(data.students)) setStudents(data.students);
       if (Array.isArray(data.attendances)) setAttendances(data.attendances);
       if (Array.isArray(data.warningLetters)) setWarningLetters(data.warningLetters);
       if (Array.isArray(data.transferRequests)) setTransferRequests(data.transferRequests);

@@ -153,16 +153,13 @@ export const SignaturePadModal: React.FC<SignaturePadModalProps> = ({
     e.target.value = '';
   };
 
-  const [errorNotice, setErrorNotice] = useState<string | null>(null);
-
   const handleSaveDrawn = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     if (!hasDrawn) {
-      setErrorNotice('Silakan gambar tanda tangan terlebih dahulu, upload file, atau klik "Paraf Otomatis".');
+      alert('Silakan gambar tanda tangan terlebih dahulu, upload file, atau gunakan fitur Paraf Otomatis.');
       return;
     }
-    setErrorNotice(null);
     const dataUrl = canvas.toDataURL('image/png');
     onSave(dataUrl);
     onClose();
@@ -279,20 +276,6 @@ export const SignaturePadModal: React.FC<SignaturePadModalProps> = ({
               {isKepalaSekolah ? 'TTD Kepala Sekolah (Kiri Lembar)' : 'TTD Petugas / Wali Kelas'}
             </div>
           </div>
-
-          {/* Error Notice */}
-          {errorNotice && (
-            <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-[11px] font-semibold flex items-center justify-between">
-              <span>{errorNotice}</span>
-              <button
-                type="button"
-                onClick={() => setErrorNotice(null)}
-                className="text-rose-500 hover:text-rose-700 ml-2 font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-          )}
 
           {/* Action Tools */}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">

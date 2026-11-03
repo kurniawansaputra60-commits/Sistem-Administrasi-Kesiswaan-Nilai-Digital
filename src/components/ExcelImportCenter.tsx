@@ -64,7 +64,7 @@ export const ExcelImportCenter: React.FC = () => {
     if (parsedRows.length === 0) return;
     const validRows = parsedRows.filter(r => r.isValid);
     if (validRows.length === 0) {
-      setParseError('Tidak ada baris data valid yang dapat diimpor.');
+      alert('Tidak ada baris data valid yang dapat diimpor.');
       return;
     }
 
