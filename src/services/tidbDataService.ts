@@ -105,19 +105,35 @@ export async function testTiDBDataService(cfg?: Partial<TiDBDataServiceConfig>):
       };
     }
 
-    // 2. Jika 404 pada get_school_profile, uji alternatif: get_students
+    // 2. Jika 404 pada get_school_profile, uji alternatif: school_data dan get_students
     if (resProfile.status === 404) {
+      // Uji endpoint /school_data yang baru dikonfigurasi di /db/http_endpoints
+      const urlSchoolData = `${cleanUrl}/school_data?key_name=main`;
+      try {
+        const resSchoolData = await fetch(urlSchoolData, { method: 'GET', headers });
+        const latencyMs2 = Date.now() - startTime;
+        if (resSchoolData.ok) {
+          const jsonSchoolData = await resSchoolData.json();
+          return {
+            success: true,
+            latencyMs: latencyMs2,
+            message: `Endpoint /school_data berhasil diakses (${latencyMs2}ms)! Sinkronisasi data sekolah TiDB Cloud aktif.`,
+            data: jsonSchoolData,
+          };
+        }
+      } catch {}
+
       const urlStudents = `${cleanUrl}/get_students?school_id=${encodeURIComponent(config.schoolId || '20602495')}&kelas=VI`;
       try {
         const resStudents = await fetch(urlStudents, { method: 'GET', headers });
-        const latencyMs2 = Date.now() - startTime;
+        const latencyMs3 = Date.now() - startTime;
 
         if (resStudents.ok) {
           const jsonStudents = await resStudents.json();
           return {
             success: true,
-            latencyMs: latencyMs2,
-            message: `Endpoint /get_students aktif dan berhasil diakses (${latencyMs2}ms)! Namun /get_school_profile masih 404. Silakan buka tab 'Deployments' di TiDB Cloud dan klik 'Deploy' untuk mengaktifkan seluruh endpoint.`,
+            latencyMs: latencyMs3,
+            message: `Endpoint /get_students aktif dan berhasil diakses (${latencyMs3}ms)! Namun /get_school_profile masih 404. Silakan buka tab 'Deployments' di TiDB Cloud dan klik 'Deploy' untuk mengaktifkan seluruh endpoint.`,
             data: jsonStudents,
           };
         }
@@ -126,7 +142,7 @@ export async function testTiDBDataService(cfg?: Partial<TiDBDataServiceConfig>):
       return {
         success: false,
         latencyMs,
-        message: `Endpoint /get_school_profile belum aktif di TiDB Data Service (HTTP 404). Penyebab: opsi 'Review Draft' aktif di TiDB Cloud atau file belum di-deploy. Buka tab 'Deployments' di TiDB Cloud lalu klik 'Deploy', atau ubah konfigurasi agar Auto Deploy tanpa review draft.`,
+        message: `Endpoint TiDB Data Service belum aktif (HTTP 404). Pastikan opsi 'Review Draft' disetujui di tab 'Deployments' pada dashboard TiDB Cloud.`,
       };
     }
 
@@ -212,4 +228,54 @@ export async function fetchReportS11FromTiDBDataService(options: {
   }
   const result = await res.json();
   return Array.isArray(result) ? result : result.data?.rows || result.data || result.rows || [];
+}
+
+/**
+ * Mengambil snapshot school_data via REST API TiDB Data Service (/school_data?key_name=main)
+ */
+export async function fetchSchoolDataSnapshot(keyName = 'main'): Promise<any | null> {
+  const config = getTiDBDataServiceConfig();
+  const cleanUrl = config.baseUrl.replace(/\/+$/, '');
+  const url = `${cleanUrl}/school_data?key_name=${encodeURIComponent(keyName)}`;
+  const headers = createAuthHeaders(config.publicKey, config.privateKey);
+
+  const res = await fetch(url, { method: 'GET', headers });
+  if (!res.ok) {
+    throw new Error(`HTTP Error ${res.status}: ${await res.text()}`);
+  }
+  const result = await res.json();
+  const rows = Array.isArray(result) ? result : result.data?.rows || result.data || result.rows || [];
+  if (rows && rows.length > 0 && rows[0]?.data_json) {
+    return typeof rows[0].data_json === 'string' ? JSON.parse(rows[0].data_json) : rows[0].data_json;
+  }
+  return null;
+}
+
+/**
+ * Menyimpan snapshot school_data via REST API TiDB Data Service (PUT/POST /school_data)
+ */
+export async function saveSchoolDataSnapshot(data: any, keyName = 'main'): Promise<boolean> {
+  const config = getTiDBDataServiceConfig();
+  const cleanUrl = config.baseUrl.replace(/\/+$/, '');
+  const url = `${cleanUrl}/school_data`;
+  const headers = createAuthHeaders(config.publicKey, config.privateKey);
+  const jsonStr = typeof data === 'string' ? data : JSON.stringify(data);
+
+  // Coba gunakan PUT terlebih dahulu
+  try {
+    const putRes = await fetch(url, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ key_name: keyName, data_json: jsonStr }),
+    });
+    if (putRes.ok) return true;
+  } catch {}
+
+  // Fallback ke POST jika belum pernah ada data sebelumnya
+  const postRes = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ key_name: keyName, data_json: jsonStr }),
+  });
+  return postRes.ok;
 }

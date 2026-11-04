@@ -160,6 +160,15 @@ export const MySQLDatabaseCenter: React.FC = () => {
           bulanTahun: '2026-11',
         });
         setEndpointResponse(data);
+      } else if (selectedEndpoint === 'school_data') {
+        const cleanUrl = dsConfig.baseUrl.replace(/\/+$/, '');
+        const res = await fetch(`${cleanUrl}/school_data?key_name=main`, {
+          headers: dsConfig.publicKey && dsConfig.privateKey ? {
+            'Authorization': `Basic ${btoa(`${dsConfig.publicKey}:${dsConfig.privateKey}`)}`
+          } : {}
+        });
+        const json = await res.json();
+        setEndpointResponse(json);
       } else {
         // Panggil endpoint generik
         const cleanUrl = dsConfig.baseUrl.replace(/\/+$/, '');
@@ -629,6 +638,7 @@ git push -u origin main`;
                 >
                   <option value="get_students">/get_students</option>
                   <option value="get_school_profile">/get_school_profile</option>
+                  <option value="school_data">/school_data (CRUD Snapshot)</option>
                   <option value="report_rekap_nilai_s20">/report_rekap_nilai_s20 (Pivot S-20)</option>
                   <option value="report_rekap_absensi_s11">/report_rekap_absensi_s11 (Absen S-11)</option>
                 </select>
