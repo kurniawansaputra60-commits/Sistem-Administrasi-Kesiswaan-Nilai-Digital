@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User account profile and role assignments",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "kepala_sekolah", "guru_kelas", "operator"] },
+        "nip": { "type": "string" },
+        "kelasTugas": { "type": "string" },
+        "rombelTugas": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "SchoolProfile": {
+      "title": "School Profile",
+      "description": "Official school metadata and official letterhead configuration",
+      "type": "object",
+      "properties": {
+        "namaSekolah": { "type": "string" },
+        "npsn": { "type": "string" },
+        "nss": { "type": "string" },
+        "alamat": { "type": "string" },
+        "desaKelurahan": { "type": "string" },
+        "kecamatan": { "type": "string" },
+        "kabupatenKota": { "type": "string" },
+        "provinsi": { "type": "string" },
+        "kodePos": { "type": "string" },
+        "namaKepalaSekolah": { "type": "string" },
+        "nipKepalaSekolah": { "type": "string" },
+        "tahunAjaranAktif": { "type": "string" },
+        "semesterAktif": { "type": "string" }
+      }
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Primary student record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nis": { "type": "string" },
+        "nisn": { "type": "string" },
+        "namaLengkap": { "type": "string" },
+        "jenisKelamin": { "type": "string", "enum": ["L", "P"] },
+        "kelasSekarang": { "type": "string" },
+        "rombel": { "type": "string" },
+        "statusSiswa": { "type": "string" }
+      },
+      "required": ["id", "nis", "namaLengkap", "jenisKelamin", "kelasSekarang"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Registered user accounts and access roles"
+    },
+    "/school_profile/{profileId}": {
+      "schema": "SchoolProfile",
+      "description": "School settings and configuration"
+    },
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Collection of active and archived students"
+    }
+  }
+}
