@@ -23,6 +23,15 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
+// Import TiDB Cloud / MySQL2 Pool Configuration & Storage Helpers
+import pool, {
+  checkDatabaseHealth,
+  executeQuery,
+  initTiDBSchemas,
+  saveSchoolDataToTiDB,
+  loadSchoolDataFromTiDB,
+} from './src/config/db.ts';
+
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
   res.json({
@@ -32,15 +41,175 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Helper to obtain MySQL connection
+// TiDB Cloud / Database Health Check Endpoint
+app.get('/api/database/health', async (_req, res) => {
+  const health = await checkDatabaseHealth();
+  if (health.healthy) {
+    return res.status(200).json({ success: true, ...health });
+  } else {
+    return res.status(503).json({ success: false, ...health });
+  }
+});
+
+// TiDB Cloud Auto Table Schema Initialization Endpoint
+app.post('/api/tidb/init-tables', async (_req, res) => {
+  const result = await initTiDBSchemas();
+  if (result.success) {
+    return res.status(200).json(result);
+  } else {
+    return res.status(500).json(result);
+  }
+});
+
+// TiDB Data Service REST API Proxy & Health Endpoint
+app.get('/api/tidb-dataservice/health', async (req, res) => {
+  const baseUrl = (req.query.baseUrl as string) || process.env.TIDB_DATA_SERVICE_BASE_URL || 'https://ap-southeast-1.data.tidbcloud.com/api/v1beta/app/dataapp-xepxutFs/endpoint';
+  const publicKey = (req.query.publicKey as string) || process.env.TIDB_DATA_SERVICE_PUBLIC_KEY || 'S3JJGQO0';
+  const privateKey = (req.query.privateKey as string) || process.env.TIDB_DATA_SERVICE_PRIVATE_KEY || '';
+  const schoolId = (req.query.schoolId as string) || '20602495';
+
+  const startTime = Date.now();
+  try {
+    const cleanUrl = baseUrl.replace(/\/+$/, '');
+    const targetUrl = `${cleanUrl}/get_school_profile?school_id=${encodeURIComponent(schoolId)}`;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (publicKey && privateKey) {
+      headers['Authorization'] = `Basic ${Buffer.from(`${publicKey}:${privateKey}`).toString('base64')}`;
+    }
+
+    const response = await fetch(targetUrl, { method: 'GET', headers });
+    const latencyMs = Date.now() - startTime;
+    const isOk = response.ok;
+    const status = response.status;
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {}
+
+    return res.json({
+      success: isOk,
+      status,
+      latencyMs,
+      message: isOk
+        ? `Berhasil terhubung ke TiDB Data Service (${latencyMs}ms)!`
+        : `TiDB Data Service merespons status ${status}`,
+      data,
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      message: `Gagal memanggil TiDB Data Service: ${err.message}`,
+    });
+  }
+});
+
+/**
+ * Endpoint Contoh: Mengambil seluruh data tabel siswa dari TiDB Cloud / MySQL
+ * Mendukung filter kelas (?kelas=I) dan pencarian nama/NISN (?search=Andi)
+ * Dilengkapi penanganan error mendalam untuk koneksi terputus (503 Service Unavailable),
+ * tabel belum dibuat (404 Not Found), dan kegagalan query lainnya.
+ */
+app.get(['/api/students', '/api/mysql/students'], async (req, res) => {
+  const { kelas, search } = req.query;
+
+  try {
+    let sql = 'SELECT * FROM `siswa` WHERE 1=1';
+    const params: any[] = [];
+
+    if (kelas && typeof kelas === 'string' && kelas.trim() !== '') {
+      sql += ' AND `kelas_sekarang` = ?';
+      params.push(kelas.trim());
+    }
+
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      sql += ' AND (`nama_lengkap` LIKE ? OR `nisn` LIKE ? OR `nis` LIKE ?)';
+      const keyword = `%${search.trim()}%`;
+      params.push(keyword, keyword, keyword);
+    }
+
+    sql += ' ORDER BY `kelas_sekarang` ASC, `nama_lengkap` ASC';
+
+    // Eksekusi query menggunakan fungsi executeQuery yang memiliki auto-retry jika koneksi sempat terputus
+    const rows = await executeQuery<any[]>(sql, params);
+
+    return res.status(200).json({
+      success: true,
+      message: `Berhasil mengambil ${rows.length} data siswa dari TiDB Cloud / MySQL.`,
+      total: rows.length,
+      data: rows,
+    });
+  } catch (error: any) {
+    console.error('[API Error /api/students]:', error);
+
+    // 1. Tangani jika koneksi ke database terputus / tidak dapat dijangkau
+    const connectionErrorCodes = [
+      'PROTOCOL_CONNECTION_LOST',
+      'ECONNRESET',
+      'ETIMEDOUT',
+      'ECONNREFUSED',
+      'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR',
+      'ER_CON_COUNT_ERROR',
+      'SERVER_SHUTDOWN',
+      'HANDSHAKE_ERROR',
+    ];
+
+    if (connectionErrorCodes.includes(error.code) || error.message?.includes('Connection lost') || error.message?.includes('ETIMEDOUT')) {
+      return res.status(503).json({
+        success: false,
+        error: 'DATABASE_CONNECTION_LOST',
+        message: 'Koneksi ke TiDB Cloud terputus atau tidak dapat dijangkau saat mengambil data siswa.',
+        detail: `Kode Error: ${error.code || 'UNKNOWN'}. Silakan periksa kembali TIDB_HOST, status cluster TiDB Cloud, serta pastikan konfigurasi SSL/TLS aktif.`,
+        retryable: true,
+      });
+    }
+
+    // 2. Tangani jika tabel belum diimpor / tidak ditemukan di database
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      return res.status(404).json({
+        success: false,
+        error: 'TABLE_NOT_FOUND',
+        message: "Tabel 'siswa' belum ada di database TiDB Cloud Anda. Silakan impor struktur tabel terlebih dahulu melalui menu Database MySQL di aplikasi.",
+        detail: error.message,
+      });
+    }
+
+    // 3. Tangani error autentikasi atau izin akses
+    if (error.code === 'ER_ACCESS_DENIED_ERROR') {
+      return res.status(401).json({
+        success: false,
+        error: 'AUTHENTICATION_FAILED',
+        message: 'Akses ke TiDB Cloud ditolak. Periksa username dan password pada TIDB_USER / TIDB_PASSWORD.',
+        detail: error.message,
+      });
+    }
+
+    // 4. Kesalahan query / server umum
+    return res.status(500).json({
+      success: false,
+      error: 'INTERNAL_SERVER_ERROR',
+      message: 'Terjadi kesalahan pada server saat memproses data siswa.',
+      detail: error.message,
+    });
+  }
+});
+
+// Helper to obtain MySQL connection (fallback for direct manual config testing)
 async function getMySQLConnection(cfg?: any) {
+  const isTargetTiDB = (cfg?.host || process.env.TIDB_HOST || process.env.MYSQL_HOST || '').includes('tidbcloud.com');
+  const defaultPort = isTargetTiDB ? 4000 : 3306;
+
   return await mysql.createConnection({
-    host: cfg?.host || process.env.MYSQL_HOST || 'localhost',
-    port: Number(cfg?.port || process.env.MYSQL_PORT || 3306),
-    user: cfg?.user || process.env.MYSQL_USER || 'root',
-    password: cfg?.password !== undefined ? cfg.password : process.env.MYSQL_PASSWORD || '',
-    database: cfg?.database || process.env.MYSQL_DATABASE || 'db_kesiswaan_sekolah',
-    connectTimeout: 5000,
+    host: cfg?.host || process.env.TIDB_HOST || process.env.MYSQL_HOST || 'localhost',
+    port: Number(cfg?.port || process.env.TIDB_PORT || process.env.MYSQL_PORT || defaultPort),
+    user: cfg?.user || process.env.TIDB_USER || process.env.MYSQL_USER || 'root',
+    password: cfg?.password !== undefined 
+      ? cfg.password 
+      : (process.env.TIDB_PASSWORD || process.env.MYSQL_PASSWORD || ''),
+    database: cfg?.database || process.env.TIDB_DATABASE || process.env.MYSQL_DATABASE || 'db_kesiswaan_sekolah',
+    connectTimeout: 8000,
+    ssl: (cfg?.ssl === false || process.env.TIDB_ENABLE_SSL === 'false') 
+      ? undefined 
+      : { minVersion: 'TLSv1.2', rejectUnauthorized: true },
   });
 }
 
@@ -302,40 +471,58 @@ app.post('/api/mysql/pull', async (req, res) => {
   }
 });
 
-// Sync data endpoint: Save and retrieve system data for instant multi-device sync & offline fallback
-app.get('/api/data', (req, res) => {
+// Sync data endpoint: Save and retrieve system data for instant multi-device sync, TiDB Cloud, and offline fallback
+app.get(['/api/data', '/api/sync', '/api/school-data'], async (_req, res) => {
   try {
+    // 1. Prioritaskan pengambilan dari TiDB Cloud jika terhubung
+    try {
+      const cloudData = await loadSchoolDataFromTiDB();
+      if (cloudData) {
+        return res.json({ success: true, source: 'tidb_cloud', data: cloudData });
+      }
+    } catch (e) {
+      console.warn('[TiDB Read Warning]:', e);
+    }
+
+    // 2. Fallback ke disk lokal data/database_kesiswaan.json
     const filePath = path.join(dataDir, 'database_kesiswaan.json');
     if (fs.existsSync(filePath)) {
       const rawData = fs.readFileSync(filePath, 'utf-8');
       const parsed = JSON.parse(rawData);
-      return res.json({ success: true, data: parsed });
+      return res.json({ success: true, source: 'server_disk', data: parsed });
     }
+
     return res.json({ success: true, data: null });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.post('/api/sync', (req, res) => {
+app.post('/api/sync', async (req, res) => {
   try {
     const payload = req.body;
-    const filePath = path.join(dataDir, 'database_kesiswaan.json');
-    fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf-8');
-    res.json({ success: true, message: 'Data kesiswaan berhasil disinkronkan ke server.' });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.get('/api/sync', (_req, res) => {
-  try {
-    const filePath = path.join(dataDir, 'database_kesiswaan.json');
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath, 'utf-8');
-      return res.json({ success: true, data: JSON.parse(data) });
+    
+    // 1. Tulis ke file disk server
+    try {
+      const filePath = path.join(dataDir, 'database_kesiswaan.json');
+      fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf-8');
+    } catch (e) {
+      console.warn('Gagal menulis cadangan lokal data/database_kesiswaan.json:', e);
     }
-    return res.json({ success: false, message: 'No server backup found' });
+
+    // 2. Simpan juga ke TiDB Cloud jika terhubung
+    let tidbSaved = false;
+    try {
+      tidbSaved = await saveSchoolDataToTiDB(payload);
+    } catch (e) {
+      console.warn('Gagal sinkron ke TiDB Cloud:', e);
+    }
+
+    res.json({
+      success: true,
+      message: 'Data kesiswaan berhasil disinkronkan ke server.',
+      tidbSaved,
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -370,9 +557,14 @@ async function startServer() {
     });
   }
 
-  app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`Server administrasi kesiswaan aktif di port ${PORT}`);
-  });
+  // Hanya jalankan app.listen jika bukan dipanggil sebagai serverless function Vercel
+  if (process.env.VERCEL !== '1') {
+    app.listen(Number(PORT), '0.0.0.0', () => {
+      console.log(`Server administrasi kesiswaan aktif di port ${PORT}`);
+    });
+  }
 }
 
 startServer();
+
+export default app;
