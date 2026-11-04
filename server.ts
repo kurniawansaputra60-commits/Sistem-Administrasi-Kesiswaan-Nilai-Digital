@@ -17,10 +17,14 @@ const isProduction = process.env.NODE_ENV === 'production';
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Database storage directory for server backup
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+// Database storage directory for server backup (safe for Vercel read-only filesystem)
+const dataDir = process.env.VERCEL ? '/tmp/data' : path.join(__dirname, 'data');
+try {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Gagal membuat folder cadangan server dataDir:', e);
 }
 
 // Import TiDB Cloud / MySQL2 Pool Configuration & Storage Helpers
@@ -30,6 +34,7 @@ import pool, {
   initTiDBSchemas,
   saveSchoolDataToTiDB,
   loadSchoolDataFromTiDB,
+  isDatabaseConfigured,
 } from './src/config/db.ts';
 
 // REST API Endpoints
@@ -41,24 +46,57 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// TiDB Cloud / Database Health Check Endpoint
-app.get('/api/database/health', async (_req, res) => {
-  const health = await checkDatabaseHealth();
-  if (health.healthy) {
-    return res.status(200).json({ success: true, ...health });
-  } else {
-    return res.status(503).json({ success: false, ...health });
+// TiDB Cloud / Database Health Check Endpoint (mendukung GET dan POST dengan custom config)
+app.all('/api/database/health', async (req, res) => {
+  const customConfig = req.body?.config || (req.body?.host ? req.body : null) || (req.query?.host ? req.query : null);
+
+  if (customConfig && customConfig.host && typeof customConfig.host === 'string' && customConfig.host.trim() !== '') {
+    const start = Date.now();
+    try {
+      const conn = await getMySQLConnection(customConfig);
+      await conn.query('SELECT 1');
+      const latencyMs = Date.now() - start;
+      let siswaCount = 0;
+      try {
+        const [rows]: any = await conn.query('SELECT COUNT(*) as count FROM `siswa`');
+        siswaCount = rows?.[0]?.count || 0;
+      } catch {}
+      await conn.end();
+
+      const isTiDB = (customConfig.host || '').includes('tidbcloud.com');
+      return res.status(200).json({
+        success: true,
+        healthy: true,
+        message: `Terhubung sukses ke ${isTiDB ? 'TiDB Cloud Serverless' : 'MySQL Database'} (${latencyMs}ms)`,
+        latencyMs,
+        host: customConfig.host,
+        database: customConfig.database || 'test',
+        isTiDB,
+        siswaCount,
+      });
+    } catch (err: any) {
+      return res.status(200).json({
+        success: false,
+        healthy: false,
+        message: `Gagal terhubung ke TiDB Cloud: ${err.message}`,
+        error: err.code || err.message,
+        host: customConfig.host,
+        database: customConfig.database || 'test',
+        isTiDB: Boolean((customConfig.host || '').includes('tidbcloud.com')),
+      });
+    }
   }
+
+  // Fallback ke Environment Variables default
+  const health = await checkDatabaseHealth();
+  return res.status(200).json({ success: health.healthy, ...health });
 });
 
-// TiDB Cloud Auto Table Schema Initialization Endpoint
-app.post('/api/tidb/init-tables', async (_req, res) => {
-  const result = await initTiDBSchemas();
-  if (result.success) {
-    return res.status(200).json(result);
-  } else {
-    return res.status(500).json(result);
-  }
+// TiDB Cloud Auto Table Schema Initialization Endpoint (mendukung custom config dari body)
+app.post('/api/tidb/init-tables', async (req, res) => {
+  const customConfig = req.body?.config || (req.body?.host ? req.body : undefined);
+  const result = await initTiDBSchemas(customConfig);
+  return res.status(200).json(result);
 });
 
 // TiDB Data Service REST API Proxy & Health Endpoint
@@ -111,6 +149,16 @@ app.get('/api/tidb-dataservice/health', async (req, res) => {
  */
 app.get(['/api/students', '/api/mysql/students'], async (req, res) => {
   const { kelas, search } = req.query;
+
+  if (!isDatabaseConfigured()) {
+    return res.status(200).json({
+      success: false,
+      configured: false,
+      message: 'Database TiDB Cloud / MySQL belum dikonfigurasi di Environment Variables.',
+      total: 0,
+      data: [],
+    });
+  }
 
   try {
     let sql = 'SELECT * FROM `siswa` WHERE 1=1';
@@ -528,8 +576,30 @@ app.post('/api/sync', async (req, res) => {
   }
 });
 
+// Rute API 404 - memastikan tidak ada permintaan /api/* yang menghasilkan HTML SPA
+app.use('/api', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `Endpoint API '${req.originalUrl}' tidak ditemukan pada server backend.`,
+  });
+});
+
+// Penanganan error global untuk API Express
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[API Server Error]:', err);
+  res.status(500).json({
+    success: false,
+    error: err?.message || 'Terjadi kesalahan internal pada server.',
+  });
+});
+
 // Vite middleware in dev or static files in production
 async function startServer() {
+  if (process.env.VERCEL) {
+    // Di lingkungan Serverless Vercel, file statis dilayani otomatis oleh CDN Vercel
+    return;
+  }
+
   const distPath = path.join(__dirname, 'dist');
   const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
 
@@ -557,12 +627,9 @@ async function startServer() {
     });
   }
 
-  // Hanya jalankan app.listen jika bukan dipanggil sebagai serverless function Vercel
-  if (process.env.VERCEL !== '1') {
-    app.listen(Number(PORT), '0.0.0.0', () => {
-      console.log(`Server administrasi kesiswaan aktif di port ${PORT}`);
-    });
-  }
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`Server administrasi kesiswaan aktif di port ${PORT}`);
+  });
 }
 
 startServer();

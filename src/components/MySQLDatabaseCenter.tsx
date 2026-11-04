@@ -80,11 +80,30 @@ export const MySQLDatabaseCenter: React.FC = () => {
     checkTiDBHealth();
   }, []);
 
-  const checkTiDBHealth = async () => {
-    setTesting(true);
+  const safeFetchJson = async (url: string, options?: RequestInit) => {
+    const res = await fetch(url, options);
+    const text = await res.text();
     try {
-      const res = await fetch('/api/database/health');
-      const data = await res.json();
+      return JSON.parse(text);
+    } catch {
+      if (text.includes('<!doctype') || text.includes('<html')) {
+        throw new Error(`Server Vercel merespons halaman HTML (Status ${res.status}). Kemungkinan fungsi backend Vercel belum selesai redeploy atau periksa konfigurasi Vercel Environment Variables.`);
+      }
+      throw new Error(`Respons server bukan JSON valid: ${text.slice(0, 120)}`);
+    }
+  };
+
+  const checkTiDBHealth = async (overrideCfg?: any) => {
+    setTesting(true);
+    const targetCfg = (overrideCfg && typeof overrideCfg === 'object' && 'host' in overrideCfg)
+      ? overrideCfg
+      : mysqlConfig;
+    try {
+      const data = await safeFetchJson('/api/database/health', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: targetCfg }),
+      });
       setTestResult(data);
     } catch (err: any) {
       setTestResult({
@@ -162,8 +181,11 @@ export const MySQLDatabaseCenter: React.FC = () => {
     setInitializingTables(true);
     setActionMsg(null);
     try {
-      const res = await fetch('/api/tidb/init-tables', { method: 'POST' });
-      const data = await res.json();
+      const data = await safeFetchJson('/api/tidb/init-tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: mysqlConfig }),
+      });
       if (data.success) {
         setActionMsg({ type: 'success', text: data.message });
         await checkTiDBHealth();
@@ -182,16 +204,15 @@ export const MySQLDatabaseCenter: React.FC = () => {
     setActionMsg(null);
     try {
       await forceSyncToCloud();
-      const res = await fetch('/api/mysql/push', {
+      const data = await safeFetchJson('/api/mysql/push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: mysqlConfig, students, schoolProfile }),
       });
-      const data = await res.json();
       if (data.success) {
         setActionMsg({ type: 'success', text: `${data.message} Seluruh data siswa & profil tersimpan di TiDB Cloud!` });
       } else {
-        setActionMsg({ type: 'error', text: `Gagal sinkron ke MySQL: ${data.error || 'Terjadi kesalahan'}` });
+        setActionMsg({ type: 'error', text: `Gagal sinkron ke MySQL: ${data.error || data.message || 'Terjadi kesalahan'}` });
       }
     } catch (err: any) {
       setActionMsg({ type: 'error', text: `Gagal terhubung ke server: ${err.message}` });
@@ -211,12 +232,11 @@ export const MySQLDatabaseCenter: React.FC = () => {
         setPulling(false);
         return;
       }
-      const res = await fetch('/api/mysql/pull', {
+      const data = await safeFetchJson('/api/mysql/pull', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: mysqlConfig }),
       });
-      const data = await res.json();
       if (data.success) {
         if (data.schoolProfile) updateSchoolProfile(data.schoolProfile);
         if (Array.isArray(data.students) && data.students.length > 0) {
@@ -224,7 +244,7 @@ export const MySQLDatabaseCenter: React.FC = () => {
         }
         setActionMsg({ type: 'success', text: data.message });
       } else {
-        setActionMsg({ type: 'error', text: `Gagal menarik data dari MySQL: ${data.error || 'Terjadi kesalahan'}` });
+        setActionMsg({ type: 'error', text: `Gagal menarik data dari MySQL: ${data.error || data.message || 'Terjadi kesalahan'}` });
       }
     } catch (err: any) {
       setActionMsg({ type: 'error', text: `Gagal terhubung ke server: ${err.message}` });
@@ -847,7 +867,7 @@ ORDER BY s.nama_lengkap ASC;`}
                   <span>Koneksi TiDB Cloud Serverless (MySQL2 Pool)</span>
                 </h2>
                 <button
-                  onClick={checkTiDBHealth}
+                  onClick={() => checkTiDBHealth()}
                   disabled={testing}
                   className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors cursor-pointer"
                 >

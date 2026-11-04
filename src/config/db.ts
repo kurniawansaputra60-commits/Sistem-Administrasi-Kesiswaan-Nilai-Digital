@@ -9,6 +9,21 @@ dotenv.config();
  * Mendukung SSL/TLS wajib TiDB Cloud (AWS/GCP Serverless), DATABASE_URL, dan pemulihan otomatis saat koneksi terputus.
  */
 
+/**
+ * Cek apakah kredensial database telah dikonfigurasi melalui Environment Variables
+ */
+export function isDatabaseConfigured(): boolean {
+  const url = process.env.DATABASE_URL || process.env.TIDB_DATABASE_URL || process.env.MYSQL_URL;
+  if (url && url.startsWith('mysql://')) {
+    return true;
+  }
+  const host = process.env.TIDB_HOST || process.env.MYSQL_HOST;
+  if (host && host.trim() !== '' && host !== 'localhost' && host !== '127.0.0.1') {
+    return true;
+  }
+  return false;
+}
+
 function parseDatabaseConfig(): mysql.PoolOptions {
   // Dukungan untuk URL string DATABASE_URL (format umum Vercel / TiDB Cloud Connection String)
   const connectionUri = process.env.DATABASE_URL || process.env.TIDB_DATABASE_URL || process.env.MYSQL_URL;
@@ -44,7 +59,7 @@ function parseDatabaseConfig(): mysql.PoolOptions {
   const defaultPort = isTiDB ? 4000 : 3306;
 
   return {
-    host: process.env.TIDB_HOST || process.env.MYSQL_HOST || 'localhost',
+    host: process.env.TIDB_HOST || process.env.MYSQL_HOST || '',
     port: Number(process.env.TIDB_PORT || process.env.MYSQL_PORT || defaultPort),
     user: process.env.TIDB_USER || process.env.MYSQL_USER || 'root',
     password: process.env.TIDB_PASSWORD !== undefined 
@@ -68,14 +83,17 @@ function parseDatabaseConfig(): mysql.PoolOptions {
 }
 
 let dbConfig = parseDatabaseConfig();
-let pool: mysql.Pool = mysql.createPool(dbConfig);
+let pool: mysql.Pool | null = null;
 
 /**
- * Mendapatkan instance pool saat ini atau membuat ulang jika konfigurasi berubah
+ * Mendapatkan instance pool saat ini secara lazy atau membuat ulang jika konfigurasi kustom diberikan
  */
-export function getPool(customConfig?: mysql.PoolOptions): mysql.Pool {
+export function getPool(customConfig?: mysql.PoolOptions): mysql.Pool | null {
   if (customConfig) {
     return mysql.createPool(customConfig);
+  }
+  if (!isDatabaseConfigured()) {
+    return null;
   }
   if (!pool) {
     dbConfig = parseDatabaseConfig();
@@ -95,13 +113,32 @@ export async function checkDatabaseHealth(): Promise<{
   database?: string;
   isTiDB?: boolean;
 }> {
+  if (!isDatabaseConfigured()) {
+    return {
+      healthy: false,
+      message: 'Database TiDB Cloud / MySQL belum dikonfigurasi pada Environment Variables (TIDB_HOST atau DATABASE_URL).',
+      host: 'Belum Dikonfigurasi',
+      database: 'Belum Dikonfigurasi',
+      isTiDB: false,
+    };
+  }
+
   const start = Date.now();
-  const host = String(dbConfig.host || 'localhost');
+  const host = String(dbConfig.host || '');
   const database = String(dbConfig.database || 'db_kesiswaan_sekolah');
   const isTiDB = host.includes('tidbcloud.com');
 
   try {
     const currentPool = getPool();
+    if (!currentPool) {
+      return {
+        healthy: false,
+        message: 'Pool database belum diinisialisasi.',
+        host,
+        database,
+        isTiDB,
+      };
+    }
     await currentPool.query('SELECT 1');
     const latencyMs = Date.now() - start;
     return {
@@ -124,11 +161,40 @@ export async function checkDatabaseHealth(): Promise<{
 }
 
 /**
- * Inisialisasi tabel dasar pada TiDB Cloud / MySQL otomatis jika belum ada
+ * Inisialisasi tabel dasar pada TiDB Cloud / MySQL otomatis jika belum ada.
+ * Mendukung konfigurasi kustom dari frontend (misalnya saat pengujian live) atau pool default.
  */
-export async function initTiDBSchemas(): Promise<{ success: boolean; message: string }> {
+export async function initTiDBSchemas(customConfig?: any): Promise<{ success: boolean; message: string }> {
+  let targetClient: any = null;
+  let isStandalone = false;
+
   try {
-    const currentPool = getPool();
+    if (customConfig && customConfig.host && typeof customConfig.host === 'string' && customConfig.host.trim() !== '') {
+      const isTargetTiDB = (customConfig.host || '').includes('tidbcloud.com');
+      const defaultPort = isTargetTiDB ? 4000 : 3306;
+      targetClient = await mysql.createConnection({
+        host: customConfig.host,
+        port: Number(customConfig.port) || defaultPort,
+        user: customConfig.user || 'root',
+        password: customConfig.password !== undefined ? customConfig.password : '',
+        database: customConfig.database || 'test',
+        connectTimeout: 10000,
+        ssl: customConfig.ssl === false ? undefined : { minVersion: 'TLSv1.2', rejectUnauthorized: true },
+      });
+      isStandalone = true;
+    } else if (isDatabaseConfigured()) {
+      targetClient = getPool();
+      if (!targetClient) {
+        return { success: false, message: 'Pool database tidak tersedia.' };
+      }
+    } else {
+      return {
+        success: false,
+        message: 'Koneksi database belum aktif. Harap isi formulir Host & Password TiDB atau atur variabel TIDB_HOST di Vercel.',
+      };
+    }
+
+    const currentPool = targetClient;
 
     // 1. Tabel school_data untuk sinkronisasi dokumen instan
     await currentPool.query(`
@@ -212,11 +278,45 @@ export async function initTiDBSchemas(): Promise<{ success: boolean; message: st
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
+    // 4. Tabel schools & students (kompatibilitas multi-tenancy TiDB Data Service)
+    await currentPool.query(`
+      CREATE TABLE IF NOT EXISTS \`schools\` (
+        \`id\` VARCHAR(50) NOT NULL,
+        \`nama_sekolah\` VARCHAR(150) NOT NULL,
+        \`npsn\` VARCHAR(20) NOT NULL,
+        \`alamat\` TEXT,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`id\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await currentPool.query(`
+      CREATE TABLE IF NOT EXISTS \`students\` (
+        \`id\` VARCHAR(36) NOT NULL,
+        \`school_id\` VARCHAR(50) NOT NULL,
+        \`nis\` VARCHAR(30) NOT NULL,
+        \`nisn\` VARCHAR(30) NOT NULL,
+        \`nama_lengkap\` VARCHAR(150) NOT NULL,
+        \`jenis_kelamin\` ENUM('L', 'P') NOT NULL,
+        \`kelas_sekarang\` VARCHAR(10) NOT NULL,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`id\`),
+        INDEX idx_school_kelas (\`school_id\`, \`kelas_sekarang\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    if (isStandalone && targetClient) {
+      await targetClient.end();
+    }
+
     return {
       success: true,
-      message: 'Struktur tabel TiDB Cloud (`school_data`, `sekolah_profile`, `siswa`) berhasil diinisialisasi.',
+      message: 'Struktur tabel TiDB Cloud (`school_data`, `sekolah_profile`, `siswa`, `schools`, `students`) berhasil diinisialisasi.',
     };
   } catch (error: any) {
+    if (isStandalone && targetClient) {
+      try { await targetClient.end(); } catch {}
+    }
     return {
       success: false,
       message: `Gagal inisialisasi tabel di TiDB: ${error.message}`,
@@ -228,8 +328,14 @@ export async function initTiDBSchemas(): Promise<{ success: boolean; message: st
  * Simpan snapshot data lengkap ke tabel school_data di TiDB Cloud
  */
 export async function saveSchoolDataToTiDB(data: any): Promise<boolean> {
+  if (!isDatabaseConfigured()) {
+    return false;
+  }
+
   try {
     const currentPool = getPool();
+    if (!currentPool) return false;
+
     const jsonStr = JSON.stringify(data);
     await currentPool.query(
       `INSERT INTO \`school_data\` (\`key_name\`, \`data_json\`) 
@@ -238,8 +344,11 @@ export async function saveSchoolDataToTiDB(data: any): Promise<boolean> {
       [jsonStr]
     );
     return true;
-  } catch (error) {
-    console.warn('[TiDB Cloud] Gagal menyimpan snapshot school_data:', error);
+  } catch (error: any) {
+    // Supress noise if connection is refused or unavailable
+    if (error?.code !== 'ECONNREFUSED') {
+      console.warn('[TiDB Cloud] Gagal menyimpan snapshot school_data:', error.message || error);
+    }
     return false;
   }
 }
@@ -248,8 +357,14 @@ export async function saveSchoolDataToTiDB(data: any): Promise<boolean> {
  * Muat snapshot data dari tabel school_data di TiDB Cloud
  */
 export async function loadSchoolDataFromTiDB(): Promise<any | null> {
+  if (!isDatabaseConfigured()) {
+    return null;
+  }
+
   try {
     const currentPool = getPool();
+    if (!currentPool) return null;
+
     const [rows]: any = await currentPool.query(
       `SELECT \`data_json\` FROM \`school_data\` WHERE \`key_name\` = 'main' LIMIT 1`
     );
@@ -257,8 +372,10 @@ export async function loadSchoolDataFromTiDB(): Promise<any | null> {
       return JSON.parse(rows[0].data_json);
     }
     return null;
-  } catch (error) {
-    console.warn('[TiDB Cloud] Gagal memuat snapshot school_data:', error);
+  } catch (error: any) {
+    if (error?.code !== 'ECONNREFUSED') {
+      console.warn('[TiDB Cloud] Gagal memuat snapshot school_data:', error.message || error);
+    }
     return null;
   }
 }
@@ -271,11 +388,19 @@ export async function executeQuery<T = any>(
   params: any[] = [],
   maxRetries = 2
 ): Promise<T> {
+  if (!isDatabaseConfigured()) {
+    throw new Error('Database TiDB Cloud / MySQL belum dikonfigurasi pada server.');
+  }
+
+  const currentPool = getPool();
+  if (!currentPool) {
+    throw new Error('Pool koneksi database belum tersedia.');
+  }
+
   let attempts = 0;
   
   while (attempts <= maxRetries) {
     try {
-      const currentPool = getPool();
       const [results] = await currentPool.query(sql, params);
       return results as T;
     } catch (err: any) {

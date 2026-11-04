@@ -68,11 +68,11 @@ export const initialSchoolProfile: SchoolProfile = {
 };
 
 export const initialMySQLConfig: MySQLConfig = {
-  host: 'localhost',
-  port: 3306,
-  user: 'root',
+  host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+  port: 4000,
+  user: '2QP2YMKLMT7Y24A.root',
   password: '',
-  database: 'db_kesiswaan_sekolah',
+  database: 'test',
   isConnected: false,
 };
 

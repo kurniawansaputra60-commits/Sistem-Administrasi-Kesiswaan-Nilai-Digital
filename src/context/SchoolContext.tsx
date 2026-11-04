@@ -355,7 +355,14 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     // 1. Initial sync from backend server API (ensures mobile phones get latest saved data even with 0 localstorage and quota-exceeded Firestore)
     fetch('/api/data')
-      .then(res => res.json())
+      .then(async (res) => {
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return null;
+        }
+      })
       .then(res => {
         if (res?.success && res.data) {
           const remoteUpdatedAt = readTimestamp(res.data?.updatedAt);
