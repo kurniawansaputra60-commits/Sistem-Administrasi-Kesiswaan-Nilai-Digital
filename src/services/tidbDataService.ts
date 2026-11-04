@@ -80,17 +80,14 @@ export async function testTiDBDataService(cfg?: Partial<TiDBDataServiceConfig>):
 
   try {
     const cleanUrl = config.baseUrl.replace(/\/+$/, '');
-    const url = `${cleanUrl}/get_school_profile?school_id=${encodeURIComponent(config.schoolId || '20602495')}`;
     const headers = createAuthHeaders(config.publicKey, config.privateKey);
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-
+    // 1. Uji endpoint pertama: get_school_profile
+    const urlProfile = `${cleanUrl}/get_school_profile?school_id=${encodeURIComponent(config.schoolId || '20602495')}`;
+    const resProfile = await fetch(urlProfile, { method: 'GET', headers });
     const latencyMs = Date.now() - startTime;
 
-    if (res.status === 401 || res.status === 403) {
+    if (resProfile.status === 401 || resProfile.status === 403) {
       return {
         success: false,
         latencyMs,
@@ -98,29 +95,46 @@ export async function testTiDBDataService(cfg?: Partial<TiDBDataServiceConfig>):
       };
     }
 
-    if (res.status === 404) {
+    if (resProfile.ok) {
+      const json = await resProfile.json();
       return {
-        success: false,
+        success: true,
         latencyMs,
-        message: `Endpoint /get_school_profile belum aktif di TiDB Data Service (HTTP 404). Pastikan folder /db telah di-commit ke GitHub dan status 'Deployments' di TiDB Cloud sudah 'Active'.`,
+        message: `Terhubung sukses ke TiDB Data Service via /get_school_profile (${latencyMs}ms)!`,
+        data: json,
       };
     }
 
-    if (!res.ok) {
-      const errText = await res.text();
+    // 2. Jika 404 pada get_school_profile, uji alternatif: get_students
+    if (resProfile.status === 404) {
+      const urlStudents = `${cleanUrl}/get_students?school_id=${encodeURIComponent(config.schoolId || '20602495')}&kelas=VI`;
+      try {
+        const resStudents = await fetch(urlStudents, { method: 'GET', headers });
+        const latencyMs2 = Date.now() - startTime;
+
+        if (resStudents.ok) {
+          const jsonStudents = await resStudents.json();
+          return {
+            success: true,
+            latencyMs: latencyMs2,
+            message: `Endpoint /get_students aktif dan berhasil diakses (${latencyMs2}ms)! Namun /get_school_profile masih 404. Silakan buka tab 'Deployments' di TiDB Cloud dan klik 'Deploy' untuk mengaktifkan seluruh endpoint.`,
+            data: jsonStudents,
+          };
+        }
+      } catch {}
+
       return {
         success: false,
         latencyMs,
-        message: `TiDB Data Service merespons status ${res.status}: ${errText}`,
+        message: `Endpoint /get_school_profile belum aktif di TiDB Data Service (HTTP 404). Penyebab: opsi 'Review Draft' aktif di TiDB Cloud atau file belum di-deploy. Buka tab 'Deployments' di TiDB Cloud lalu klik 'Deploy', atau ubah konfigurasi agar Auto Deploy tanpa review draft.`,
       };
     }
 
-    const json = await res.json();
+    const errText = await resProfile.text();
     return {
-      success: true,
+      success: false,
       latencyMs,
-      message: `Terhubung sukses ke TiDB Data Service (${latencyMs}ms)!`,
-      data: json,
+      message: `TiDB Data Service merespons status ${resProfile.status}: ${errText.slice(0, 150)}`,
     };
   } catch (err: any) {
     return {

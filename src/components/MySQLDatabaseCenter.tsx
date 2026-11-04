@@ -24,6 +24,7 @@ import {
   Play,
   Layers,
   Key,
+  HelpCircle,
 } from 'lucide-react';
 import {
   getTiDBDataServiceConfig,
@@ -475,16 +476,38 @@ git push -u origin main`;
             </div>
 
             {dsTestResult && (
-              <div className={`p-3.5 rounded-lg text-xs flex items-start gap-2.5 ${
-                dsTestResult.success ? 'bg-emerald-50 border border-emerald-300 text-emerald-950' : 'bg-amber-50 border border-amber-300 text-amber-950'
-              }`}>
-                {dsTestResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /> : <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />}
-                <div>
-                  <p className="font-bold">{dsTestResult.message}</p>
-                  {dsTestResult.latencyMs && (
-                    <p className="text-[11px] text-slate-600 mt-0.5">Latensi panggilan endpoint: {dsTestResult.latencyMs} ms</p>
-                  )}
+              <div className="space-y-3">
+                <div className={`p-3.5 rounded-lg text-xs flex items-start gap-2.5 ${
+                  dsTestResult.success ? 'bg-emerald-50 border border-emerald-300 text-emerald-950' : 'bg-amber-50 border border-amber-300 text-amber-950'
+                }`}>
+                  {dsTestResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /> : <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />}
+                  <div className="flex-1">
+                    <p className="font-bold">{dsTestResult.message}</p>
+                    {dsTestResult.latencyMs && (
+                      <p className="text-[11px] text-slate-600 mt-0.5">Latensi panggilan endpoint: {dsTestResult.latencyMs} ms</p>
+                    )}
+                  </div>
                 </div>
+
+                {!dsTestResult.success && dsTestResult.message.includes('404') && (
+                  <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl text-xs space-y-2.5">
+                    <div className="font-bold text-blue-900 flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4 text-blue-700" />
+                      <span>Panduan Mengatasi HTTP 404 TiDB Data Service:</span>
+                    </div>
+                    <ol className="list-decimal list-inside space-y-1.5 text-slate-700 leading-relaxed">
+                      <li>
+                        <strong>Buka Tab 'Deployments' di TiDB Cloud:</strong> Pada dashboard TiDB Data Service (di samping tab <em>Settings</em>), buka tab <strong>Deployments</strong>. Jika ada draft deployment bertuliskan <em>Pending Review</em> atau <em>Draft</em>, klik tombol <strong>Deploy</strong>.
+                      </li>
+                      <li>
+                        <strong>Nonaktifkan 'Review Draft' (Rekomendasi):</strong> Pada tab <em>Settings &gt; Deployment Configuration</em>, klik tombol <strong>Configure</strong> di sebelah kanan, lalu <strong>hilangkan centang pada 'Review Draft'</strong> (tetap centang <em>Auto Sync &amp; Deployment</em>), lalu klik <strong>Save</strong>. Ini membuat setiap commit SQL otomatis live tanpa perlu konfirmasi manual.
+                      </li>
+                      <li>
+                        <strong>Pastikan File SQL Ada di GitHub:</strong> Pastikan file <code>/db/get_school_profile.sql</code> dan <code>/db/get_students.sql</code> sudah berada di branch <code>main</code> pada repositori GitHub Anda.
+                      </li>
+                    </ol>
+                  </div>
+                )}
               </div>
             )}
 
