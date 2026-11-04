@@ -1,0 +1,1 @@
+SELECT 'Halo, API TiDB berhasil menyala!' AS pesan, NOW() AS waktu_sekarang;
