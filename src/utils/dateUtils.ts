@@ -154,3 +154,68 @@ export function formatTanggalIndonesia(tanggalStr?: string | null): string {
 
   return clean;
 }
+
+/**
+ * Format tanggal dalam format numerik Indonesia: DD/MM/YYYY
+ * Contoh: "2026-03-06" -> "06/03/2026"
+ */
+export function formatDDMMYYYY(tanggalStr?: string | null): string {
+  if (!tanggalStr || !tanggalStr.trim()) return '-';
+  const clean = tanggalStr.trim();
+  const match = clean.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (match) {
+    const y = match[1];
+    const m = match[2].padStart(2, '0');
+    const d = match[3].padStart(2, '0');
+    return `${d}/${m}/${y}`;
+  }
+  return clean;
+}
+
+/**
+ * Format bulan dan tahun Indonesia dari string 'YYYY-MM'
+ * Contoh: "2026-06" -> "Juni 2026"
+ */
+export function formatBulanTahunIndo(monthStr?: string | null): string {
+  if (!monthStr || !monthStr.trim()) return '-';
+  const clean = monthStr.trim();
+  const match = clean.match(/^(\d{4})[-/](\d{1,2})/);
+  if (match) {
+    const y = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10) - 1;
+    if (m >= 0 && m < 12) {
+      return `${NAMA_BULAN[m]} ${y}`;
+    }
+  }
+  return clean;
+}
+
+/**
+ * Format rentang tanggal resmi Indonesia
+ * Contoh:
+ * Jika tanggal sama: "06/03/2026 s.d. tanggal 06/03/2026 (Jumat, 6 Maret 2026)"
+ * Jika rentang: "06/03/2026 s.d. tanggal 10/03/2026 (6 Maret 2026 s.d. 10 Maret 2026)"
+ */
+export function formatTanggalRentangIndo(startDate: string, endDate: string): string {
+  const dmyStart = formatDDMMYYYY(startDate);
+  const dmyEnd = formatDDMMYYYY(endDate);
+
+  if (startDate === endDate) {
+    const dateText = formatTanggalIndonesiaLengkap(startDate);
+    return `${dmyStart} s.d. tanggal ${dmyEnd} (${dateText})`;
+  }
+  return `${dmyStart} s.d. tanggal ${dmyEnd} (${formatTanggalIndonesia(startDate)} s.d. ${formatTanggalIndonesia(endDate)})`;
+}
+
+/**
+ * Format rentang bulan Indonesia
+ * Contoh: "Juni 2026 s.d. Juni 2026"
+ */
+export function formatBulanRentangIndo(startMonth: string, endMonth: string): string {
+  const startText = formatBulanTahunIndo(startMonth);
+  const endText = formatBulanTahunIndo(endMonth);
+  if (startMonth === endMonth) {
+    return `${startText} s.d. ${endText}`;
+  }
+  return `${startText} s.d. ${endText}`;
+}

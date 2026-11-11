@@ -4,7 +4,8 @@ import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
 import { ALL_ROMBELS, normalizeKelas } from '../../utils/classUtils';
 import { isDayOff } from '../../utils/holidayUtils';
-import { Printer, Calendar, Lock, AlertCircle } from 'lucide-react';
+import { formatTanggalRentangIndo, formatDDMMYYYY } from '../../utils/dateUtils';
+import { Printer, Calendar, Lock, AlertCircle, RefreshCw } from 'lucide-react';
 
 export const FormatS8_DailyBoard: React.FC = () => {
   const { students, schoolProfile, attendances } = useSchool();
@@ -12,18 +13,28 @@ export const FormatS8_DailyBoard: React.FC = () => {
   const isGuruKelas = userProfile?.role === 'guru_kelas';
   const effectiveKelas = userProfile?.kelasTugas || '1';
   const effectiveRombel = userProfile?.rombelTugas || 'A';
+  const binaanCode = `${effectiveKelas}${effectiveRombel}`;
 
-  const [selectedDate, setSelectedDate] = useState<string>('2026-06-03');
-  const [selectedRombelSign, setSelectedRombelSign] = useState<string>('ALL');
+  // Default: 06/03/2026 s.d. 06/03/2026 (format tanggal Indonesia)
+  const [startDate, setStartDate] = useState<string>('2026-03-06');
+  const [endDate, setEndDate] = useState<string>('2026-03-06');
+
+  // Mode Tampilan Rombel: 'ALL' (Semua Rombel) atau kode rombel binaan ('1A', '6A', dll)
+  const [filterRombel, setFilterRombel] = useState<string>(isGuruKelas ? binaanCode : 'ALL');
+
+  // Pilihan Tanda Tangan: 'GURU_PIKET' atau kode rombel binaan ('1A', '6A', dll)
+  const [signatureType, setSignatureType] = useState<string>(isGuruKelas ? binaanCode : 'GURU_PIKET');
 
   const activeStudents = students.filter(s => s.statusSiswa === 'aktif');
-  const attendanceForDate = attendances.filter(a => a.tanggal === selectedDate);
-  const holidayCheck = isDayOff(new Date(selectedDate));
 
-  // Matriks per rombel (1A s/d 6B) - Terkunci ke rombel binaan jika Guru Kelas
-  const displayedRombels = isGuruKelas
-    ? ALL_ROMBELS.filter(r => r.kelas === effectiveKelas && r.rombel === effectiveRombel)
-    : ALL_ROMBELS;
+  // Filter kehadiran dalam rentang tanggal
+  const attendanceForRange = attendances.filter(a => a.tanggal >= startDate && a.tanggal <= endDate);
+  const holidayCheck = isDayOff(new Date(startDate));
+
+  // Matriks per rombel (1A s/d 6B) - Disaring jika memilih rombel tertentu atau jika Guru Kelas
+  const displayedRombels = filterRombel === 'ALL'
+    ? ALL_ROMBELS
+    : ALL_ROMBELS.filter(r => r.code === filterRombel);
 
   const boardData = displayedRombels.map(rInfo => {
     const inClass = activeStudents.filter(s => {
@@ -36,13 +47,13 @@ export const FormatS8_DailyBoard: React.FC = () => {
     const totalP = inClass.filter(s => s.jenisKelamin === 'P').length;
     const totalSiswa = inClass.length;
 
-    // Sinkronisasi S, I, A dengan mencocokkan ID Siswa di rombel ini dari seluruh record tanggal terpilih
+    // Sinkronisasi S, I, A dengan mencocokkan ID Siswa di rombel ini dari record tanggal terpilih
     let sCount = 0;
     let iCount = 0;
     let aCount = 0;
 
     if (!holidayCheck.isLibur) {
-      attendanceForDate.forEach(classRecord => {
+      attendanceForRange.forEach(classRecord => {
         classRecord.entries.forEach(e => {
           const matchedStudent = inClass.find(st => st.id === e.studentId);
           if (matchedStudent) {
@@ -56,7 +67,9 @@ export const FormatS8_DailyBoard: React.FC = () => {
 
     const totalAbsent = sCount + iCount + aCount;
     const totalPresent = holidayCheck.isLibur ? 0 : Math.max(0, totalSiswa - totalAbsent);
-    const percentage = totalSiswa > 0 && !holidayCheck.isLibur ? Math.round((totalPresent / totalSiswa) * 100) : holidayCheck.isLibur ? 0 : 100;
+    const percentage = totalSiswa > 0 && !holidayCheck.isLibur
+      ? Math.round((totalPresent / totalSiswa) * 100)
+      : holidayCheck.isLibur ? 0 : 100;
 
     return {
       kelas: rInfo.kelas,
@@ -83,26 +96,70 @@ export const FormatS8_DailyBoard: React.FC = () => {
   const totalAllA = boardData.reduce((acc, r) => acc + r.aCount, 0);
   const totalAllAbsent = totalAllS + totalAllI + totalAllA;
   const totalAllPresent = holidayCheck.isLibur ? 0 : totalAllStudents - totalAllAbsent;
-  const avgPercentage = totalAllStudents > 0 && !holidayCheck.isLibur ? Math.round((totalAllPresent / totalAllStudents) * 100) : holidayCheck.isLibur ? 0 : 100;
+  const avgPercentage = totalAllStudents > 0 && !holidayCheck.isLibur
+    ? Math.round((totalAllPresent / totalAllStudents) * 100)
+    : holidayCheck.isLibur ? 0 : 100;
 
-  const selectedRombelObj = ALL_ROMBELS.find(r => r.code === selectedRombelSign);
+  // Tanggal format Indonesia lengkap
+  const tanggalRangeIndoText = formatTanggalRentangIndo(startDate, endDate);
+
+  // Cari data wali kelas binaan jika tanda tangan diarahkan ke wali kelas
+  const matchedWaliItem = schoolProfile.waliKelasList?.find(
+    w => `${w.kelas}${w.rombel || 'A'}` === signatureType
+  );
+  const selectedRombelObj = ALL_ROMBELS.find(r => r.code === signatureType);
+
+  // Handler tombol sinkronisasi dengan dashboard wali kelas binaan
+  const handleSyncWithWaliKelasBinaan = () => {
+    const targetCode = isGuruKelas ? binaanCode : '6A'; // default ke rombel binaan guru atau kelas binaan VI A
+    setFilterRombel(targetCode);
+    setSignatureType(targetCode);
+  };
+
+  const handleResetToAllRombels = () => {
+    setFilterRombel('ALL');
+    setSignatureType('GURU_PIKET');
+  };
 
   return (
     <div className="space-y-6">
       {/* Top Filter Bar */}
       <div className="no-print bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-slate-500" />
-            <span className="text-xs font-semibold text-slate-700">Tanggal:</span>
+          {/* Bagian Rentang Tanggal Indonesia */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Calendar className="w-4 h-4 text-emerald-600" />
+            <span className="text-xs font-bold text-slate-800">Tanggal:</span>
             <input
               type="date"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="text-xs px-3 py-1.5 border border-slate-300 rounded-md font-mono"
+              value={startDate}
+              onChange={e => {
+                const val = e.target.value;
+                setStartDate(val);
+                if (val > endDate) setEndDate(val);
+              }}
+              className="text-xs px-2.5 py-1.5 border border-slate-300 rounded-md font-mono bg-white shadow-2xs"
+            />
+            <span className="text-xs font-semibold text-slate-600">s.d tanggal</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={e => {
+                const val = e.target.value;
+                setEndDate(val);
+                if (val < startDate) setStartDate(val);
+              }}
+              className="text-xs px-2.5 py-1.5 border border-slate-300 rounded-md font-mono bg-white shadow-2xs"
             />
           </div>
 
+          {/* Badge Format Tanggal Indonesia */}
+          <div className="px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-medium rounded-md flex items-center gap-1.5">
+            <span className="font-bold">{formatDDMMYYYY(startDate)} s.d. tanggal {formatDDMMYYYY(endDate)}</span>
+            <span className="text-emerald-600 hidden sm:inline">({tanggalRangeIndoText.split('(')[1]?.replace(')', '') || ''})</span>
+          </div>
+
+          {/* Filter Rombel / Sinkronisasi Binaan */}
           {isGuruKelas ? (
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-300 rounded-md text-xs font-bold text-blue-900 shadow-2xs">
               <Lock className="w-3.5 h-3.5 text-blue-700 shrink-0" />
@@ -110,28 +167,71 @@ export const FormatS8_DailyBoard: React.FC = () => {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-700">Tanda Tangan:</span>
+              <span className="text-xs font-semibold text-slate-700">Tampilan Rombel:</span>
               <select
-                value={selectedRombelSign}
-                onChange={e => setSelectedRombelSign(e.target.value)}
+                value={filterRombel}
+                onChange={e => setFilterRombel(e.target.value)}
                 className="text-xs px-2.5 py-1.5 border border-slate-300 rounded-md bg-white font-medium"
               >
-                <option value="ALL">Guru Piket / Petugas Absensi Harian</option>
+                <option value="ALL">Semua Rombel (Seluruh Sekolah)</option>
                 {ALL_ROMBELS.map(r => (
                   <option key={r.code} value={r.code}>
-                    Wali {r.label}
+                    Rombel {r.label}
                   </option>
                 ))}
               </select>
             </div>
           )}
+
+          {/* Pilihan Tanda Tangan: Guru Piket atau Wali Kelas Binaan */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-700">Tanda Tangan:</span>
+            <select
+              value={signatureType}
+              onChange={e => setSignatureType(e.target.value)}
+              className="text-xs px-2.5 py-1.5 border border-slate-300 rounded-md bg-white font-medium"
+            >
+              <option value="GURU_PIKET">Guru Piket / Petugas Absensi Harian</option>
+              <optgroup label="Wali Kelas Binaan">
+                {ALL_ROMBELS.map(r => {
+                  const w = schoolProfile.waliKelasList?.find(item => `${item.kelas}${item.rombel || 'A'}` === r.code);
+                  return (
+                    <option key={r.code} value={r.code}>
+                      Wali {r.label} {w ? `(${w.nama})` : ''}
+                    </option>
+                  );
+                })}
+              </optgroup>
+            </select>
+          </div>
+
+          {/* Tombol Singkronkan dengan Dashboard Walikelas Binaan */}
+          {!isGuruKelas && (
+            <button
+              onClick={filterRombel === 'ALL' ? handleSyncWithWaliKelasBinaan : handleResetToAllRombels}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition cursor-pointer ${
+                filterRombel !== 'ALL'
+                  ? 'bg-blue-600 text-white border-blue-700 hover:bg-blue-700'
+                  : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+              }`}
+              title="Sinkronkan tampilan dengan dashboard wali kelas binaan"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>
+                {filterRombel !== 'ALL'
+                  ? `Tersinkron Rombel ${filterRombel} (Tampilkan Semua)`
+                  : 'Sinkronkan dengan Dashboard Walikelas Binaan'}
+              </span>
+            </button>
+          )}
         </div>
 
+        {/* Tombol Cetak S-8 */}
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg shadow-sm transition-colors cursor-pointer"
         >
-          <Printer className="w-3.5 h-3.5" />
+          <Printer className="w-4 h-4" />
           <span>Cetak Papan Absensi (S-8)</span>
         </button>
       </div>
@@ -139,7 +239,9 @@ export const FormatS8_DailyBoard: React.FC = () => {
       {holidayCheck.isLibur && (
         <div className="no-print bg-rose-50 border border-rose-200 p-3 rounded-lg text-xs text-rose-800 flex items-center gap-2 font-medium">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-          <span><strong>HARI LIBUR:</strong> Tanggal {selectedDate} merupakan <u>{holidayCheck.reason}</u>. Kegiatan KBM dan presensi diliburkan.</span>
+          <span>
+            <strong>HARI LIBUR:</strong> Tanggal {formatDDMMYYYY(startDate)} merupakan <u>{holidayCheck.reason}</u>. Kegiatan KBM dan presensi diliburkan.
+          </span>
         </div>
       )}
 
@@ -148,12 +250,12 @@ export const FormatS8_DailyBoard: React.FC = () => {
         <OfficialKop
           formatCode="S-8"
           formatTitle="PAPAN ABSENSI HARIAN SISWA"
-          subTitle={`HARI / TANGGAL : ${selectedDate} · TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
-          kelas={isGuruKelas ? effectiveKelas : selectedRombelObj?.kelas}
-          rombel={isGuruKelas ? effectiveRombel : selectedRombelObj?.rombel}
+          subTitle={`TANGGAL : ${formatDDMMYYYY(startDate)} S.D. TANGGAL ${formatDDMMYYYY(endDate)} (${tanggalRangeIndoText.toUpperCase()}) · TAHUN AJARAN ${schoolProfile.tahunAjaranAktif}`}
+          kelas={filterRombel !== 'ALL' ? (selectedRombelObj?.kelas || effectiveKelas) : undefined}
+          rombel={filterRombel !== 'ALL' ? (selectedRombelObj?.rombel || effectiveRombel) : undefined}
         />
 
-        {/* Big Highlight Counters (Like physical wooden blackboard) */}
+        {/* Highlight Counters */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 p-4 bg-slate-900 text-white rounded-lg border border-slate-800">
           <div className="text-center">
             <span className="text-[10px] text-slate-400 uppercase font-semibold">Total Siswa Terdaftar</span>
@@ -233,12 +335,28 @@ export const FormatS8_DailyBoard: React.FC = () => {
           </table>
         </div>
 
-        <OfficialSignature
-          kelas={isGuruKelas ? effectiveKelas : selectedRombelObj?.kelas}
-          rombel={isGuruKelas ? effectiveRombel : selectedRombelObj?.rombel}
-          waliKelasLabel={isGuruKelas ? `Wali Kelas ${effectiveKelas} ${effectiveRombel}` : selectedRombelObj ? `Wali ${selectedRombelObj.label}` : 'Guru Piket / Petugas Absensi Harian'}
-        />
+        {/* Tanda Tangan Resmi: Guru Piket / Petugas Absensi Harian vs Wali Kelas Binaan */}
+        {signatureType === 'GURU_PIKET' ? (
+          <OfficialSignature
+            waliKelasLabel="Guru Piket / Petugas Absensi Harian"
+            waliKelasNama={schoolProfile.namaPetugasAdmin || 'KURNIAWAN SAPUTRA'}
+            waliKelasNip={schoolProfile.nipPetugasAdmin || '19890906 202521 1 004'}
+            waliKelasTtdUrl={schoolProfile.petugasAdminTtdUrl}
+            useAdminOfficer={true}
+          />
+        ) : (
+          <OfficialSignature
+            kelas={matchedWaliItem?.kelas || selectedRombelObj?.kelas || effectiveKelas}
+            rombel={matchedWaliItem?.rombel || selectedRombelObj?.rombel || effectiveRombel}
+            waliKelasLabel={`Wali Kelas ${matchedWaliItem?.kelas || selectedRombelObj?.kelas || effectiveKelas} ${matchedWaliItem?.rombel || selectedRombelObj?.rombel || effectiveRombel}`}
+            waliKelasNama={matchedWaliItem?.nama || (isGuruKelas ? userProfile?.displayName : schoolProfile.namaWaliKelas)}
+            waliKelasNip={matchedWaliItem?.nip || (matchedWaliItem?.nik ? `NIK. ${matchedWaliItem.nik}` : '') || (isGuruKelas ? userProfile?.nip : schoolProfile.nipWaliKelas)}
+            waliKelasTtdUrl={matchedWaliItem?.ttdUrl}
+            useAdminOfficer={false}
+          />
+        )}
       </div>
     </div>
   );
 };
+
